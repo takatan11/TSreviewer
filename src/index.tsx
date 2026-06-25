@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { Layout } from './components/Layout.js'
 import { ReviewList } from './components/Reviewlist.js'
-
+import {supabase} from './db/index.js'
 const app = new Hono()
   export const Data:{review:string;teacher:string;score:string}[]=[]
 
@@ -15,7 +15,7 @@ app.get('/', (c) => {
       <p><a href="/reviews">レビュー一覧へ</a></p>
       <p><a href="/registration">新しいレビューを登録</a></p>
     </Layout>
-  )
+  )//レビュー一覧で/reviewsに、新しいレビューを登録でapp.getの/registrationに飛ぶ
 });
 
 app.get('/registration',(c)=>{
@@ -45,21 +45,18 @@ app.get('/registration',(c)=>{
       </form>
     </Layout>
   )
-});//新しい投稿の登録。
+});
 app.get('/reviews', (c) => {
   return c.html(
     <Layout title="レビュー一覧">
       <ReviewList />
     </Layout>
   )
-})
+})//いずれDBからデータをとってきて表示。動作のテスト用。本番環境までにはリニューアルするか削除すること。
 
 app.post('/registration', async (c) => {
   const body=await c.req.parseBody();//飛んできた入力内容をばらばらにする。それぞれの要素はHTMLのnameで指定された名前と一対一に対応
-  const reviews=body['review'] as string//ここから3行はデータをとりだして変数に保存する
-  const teacher=body['instructor'] as string;
-  const score=body['score'] as string;
-  Data.push({review:reviews,teacher:teacher,score:score});
+  await supabase.from('review').insert({comment:body.review as string,score:body.score});
 }) //新しい投稿の登録の処理
 
 serve({

@@ -1,0 +1,4 @@
+DBとしてBaasのSupabase、環境はnode、フレームワークはHono、デプロイ先はvercelとする
+まず今回はTSを使用する前提なので相性が非常によいvercelを使用。
+
+supabaseのテーブルはポリシーを設定しないと一切API経由でデータにアクセスできないので、
