@@ -55,9 +55,19 @@ app.get('/reviews', (c) => {
 })//いずれDBからデータをとってきて表示。動作のテスト用。本番環境までにはリニューアルするか削除すること。
 
 app.post('/registration', async (c) => {
-  const body=await c.req.parseBody();//飛んできた入力内容をばらばらにする。それぞれの要素はHTMLのnameで指定された名前と一対一に対応
-  await supabase.from('review').insert({comment:body.review as string,score:body.score});
-}) //新しい投稿の登録の処理
+  const body = await c.req.parseBody();
+  const { data, error } = await supabase
+    .from('review')
+    .insert({ comment: body.review as string, score: body.score })
+    .select();              // 挿入した行を返してもらう（成功確認用）
+
+  if (error) {
+    console.error('insert失敗:', error);   // ← ターミナルに原因が出る
+    return c.text('保存に失敗しました: ' + error.message, 500);
+  }
+  console.log('insert成功:', data);
+  return c.redirect('/reviews');
+}); //新しい投稿の登録の処理
 
 serve({
   fetch: app.fetch,
