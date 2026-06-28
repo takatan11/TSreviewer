@@ -4,19 +4,30 @@ import { Layout } from './components/Layout.js'
 import { ReviewList } from './components/Reviewlist.js'
 import {supabase} from './db/index.js'
 const app = new Hono()
-  export const Data:{review:string;teacher:string;score:string}[]=[]
-
 app.get('/', (c) => {
   return c.html(
     <Layout title="ホーム">
       <h1>ようこそ、Reviewerへ</h1>
-      <p>ここは、あなたのレビューを管理するためのサイトです。</p>
+      <p>検索欄</p>
+      <form class="search-card" method="post" action="/">
+       <div class="search-group">
+        <label for="search">kensaku</label>
+        <textarea id="search" name="search" class="search-control" placeholder="授業の名前を入力してください">
+
+        </textarea>
+
+       </div>
+      </form>
       <p>下のボタンをクリックして、レビュー一覧を見てみましょう。</p>
       <p><a href="/reviews">レビュー一覧へ</a></p>
       <p><a href="/registration">新しいレビューを登録</a></p>
     </Layout>
   )//レビュー一覧で/reviewsに、新しいレビューを登録でapp.getの/registrationに飛ぶ
 });
+
+app.post('/',(c)=>{
+return 0;
+})
 
 app.get('/registration',(c)=>{
   return c.html(
