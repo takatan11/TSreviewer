@@ -5,29 +5,29 @@ import { ReviewList } from './components/Reviewlist.js'
 import {supabase} from './db/index.js'
 const app = new Hono()
 app.get('/', (c) => {
+  const q = c.req.query('q') ?? ''   // URLの ?q=... を読む（未入力なら空文字）
   return c.html(
     <Layout title="ホーム">
       <h1>ようこそ、Reviewerへ</h1>
       <p>検索欄</p>
-      <form class="search-card" method="post" action="/">
+      <form class="search-card" method="get" action="/">
        <div class="search-group">
-        <label for="search">kensaku</label>
-        <textarea id="search" name="search" class="search-control" placeholder="授業の名前を入力してください">
-
-        </textarea>
-
+        <label for="search">検索欄</label>
+        <input type="search" id="search" name="q" value={q} class="search-control" placeholder="授業名" />
        </div>
+       <button type="submit" class="btn">検索する</button>
       </form>
       <p>下のボタンをクリックして、レビュー一覧を見てみましょう。</p>
       <p><a href="/reviews">レビュー一覧へ</a></p>
       <p><a href="/registration">新しいレビューを登録</a></p>
     </Layout>
   )//レビュー一覧で/reviewsに、新しいレビューを登録でapp.getの/registrationに飛ぶ
+  let query=supabase.from('subject').select('class_name').order('created_at', { ascending: false });
+  if(q){
+    query=query.ilike('class_name',`%${q}%`);
+  }
 });
 
-app.post('/',(c)=>{
-return 0;
-})
 
 app.get('/registration',(c)=>{
   return c.html(
@@ -57,13 +57,6 @@ app.get('/registration',(c)=>{
     </Layout>
   )
 });
-app.get('/reviews', (c) => {
-  return c.html(
-    <Layout title="レビュー一覧">
-      <ReviewList />
-    </Layout>
-  )
-})//いずれDBからデータをとってきて表示。動作のテスト用。本番環境までにはリニューアルするか削除すること。
 
 app.post('/registration', async (c) => {
   const body = await c.req.parseBody();
