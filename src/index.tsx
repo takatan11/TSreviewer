@@ -1,15 +1,23 @@
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { Layout } from './components/Layout.js'
-import { ReviewList } from './components/Reviewlist.js'
 import {supabase} from './db/index.js'
 const app = new Hono()
-app.get('/', (c) => {
-  const q = c.req.query('q') ?? ''   // URLの ?q=... を読む（未入力なら空文字）
+app.get('/', async(c) => {
+  const q = c.req.query('q') ?? ''  
+  let query=supabase.from('subject').select('class_name').order('created_at', { ascending: false });
+  if(q){
+    query=query.ilike('class_name',`%${q}%`);
+  }
+  
+  const{data:courses,error}=await query; 
+    if(error){
+    console.error("読み取り失敗!!14行目");
+    return c.text("読み取り失敗！！"+error.message);
+  }
   return c.html(
     <Layout title="ホーム">
       <h1>ようこそ、Reviewerへ</h1>
-      <p>検索欄</p>
       <form class="search-card" method="get" action="/">
        <div class="search-group">
         <label for="search">検索欄</label>
@@ -22,12 +30,19 @@ app.get('/', (c) => {
       <p><a href="/registration">新しいレビューを登録</a></p>
     </Layout>
   )//レビュー一覧で/reviewsに、新しいレビューを登録でapp.getの/registrationに飛ぶ
-  let query=supabase.from('subject').select('class_name').order('created_at', { ascending: false });
-  if(q){
-    query=query.ilike('class_name',`%${q}%`);
-  }
 });
-
+app.get('/api/suggest',async(c)=>{//検索のときにサジェストが出るようにするため、サーバーから情報をとってきている
+  const query=c.req.query('q');
+  if(!query){
+    return c.json([]);
+  }
+  const {data:search,error}=await supabase.from('subject').select('class_name').ilike('class_name',`${query}%`).limit(10);
+  if(error){
+    console.error('サジェスト取得失敗:', error);
+    return c.text('取得に失敗しました: ' + error.message, 500);
+  };
+  return c.json(search??[]);
+})
 
 app.get('/registration',(c)=>{
   return c.html(
@@ -70,7 +85,7 @@ app.post('/registration', async (c) => {
     return c.text('保存に失敗しました: ' + error.message, 500);
   }
   console.log('insert成功:', data);
-  return c.redirect('/reviews');
+  return c.redirect('/');
 }); //新しい投稿の登録の処理
 
 serve({
