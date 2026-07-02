@@ -22,6 +22,7 @@ app.get('/', async(c) => {
        <div class="search-group">
         <label for="search">検索欄</label>
         <input type="search" id="search" name="q" value={q} class="search-control" placeholder="授業名" />
+        <ul id="suggest-list" class="suggest-list"></ul>
        </div>
        <button type="submit" class="btn">検索する</button>
       </form>
