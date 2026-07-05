@@ -27,9 +27,18 @@ app.get('/', async(c) => {
        </div>
        <button type="submit" class="btn">検索する</button>
       </form>
+      
+      <form class="choice" mthod="get" action="/">
+      <div>
+        <label></label>
+        <input></input>
+        <ul></ul>
+      </div>
+      <button></button>
+      </form>
       <p>下のボタンをクリックして！！！！！レビュー一覧を見て！！</p>
-      <p><a href="/reviews">レビュー一覧へ</a></p>
-      <p><a href="/registration">新しいレビューを登録</a></p>
+      <p><a href="/reviews">すべての授業を見に行く</a></p>
+      <p><a href="/registration"></a></p>
       {html`
         <script>
 const input = document.getElementById('search');
