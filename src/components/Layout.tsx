@@ -129,4 +129,74 @@ const css = `
   }
   .btn:hover { background: #0052a3; }
   .btn:active { transform: translateY(1px); }
+
+  /* ---- 検索フォーム ---- */
+  .search-card {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+  .search-group {
+    position: relative;   /* 候補リストの浮かせる基準 */
+    flex: 1;
+  }
+  .search-group label {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  .search-control {
+    width: 100%;
+    padding: 0.65rem 0.85rem;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--text);
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .search-control:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
+  }
+  .search-card .btn {
+    align-self: flex-end;   /* ボタンを入力欄の下端にそろえる */
+  }
+
+  /* ---- サジェスト候補 ---- */
+  .suggest-list {
+    position: absolute;
+    top: calc(100% + 4px);   /* 入力欄のすぐ下 */
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 0.25rem 0;
+    list-style: none;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    z-index: 20;
+    max-height: 16rem;
+    overflow-y: auto;
+  }
+  .suggest-list:empty {
+    display: none;   /* 候補が無いときは箱ごと隠す */
+  }
+  .suggest-list li {
+    padding: 0.5rem 0.85rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+  }
+  .suggest-list li:hover {
+    background: #f0f6ff;
+  }
 `

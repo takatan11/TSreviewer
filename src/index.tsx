@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { Layout } from './components/Layout.js'
 import {supabase} from './db/index.js'
+import{html} from 'hono/html'
 const app = new Hono()
 app.get('/', async(c) => {
   const q = c.req.query('q') ?? ''  
@@ -26,9 +27,35 @@ app.get('/', async(c) => {
        </div>
        <button type="submit" class="btn">検索する</button>
       </form>
-      <p>下のボタンをクリックして、レビュー一覧を見てみましょう。</p>
+      <p>下のボタンをクリックして！！！！！レビュー一覧を見て！！</p>
       <p><a href="/reviews">レビュー一覧へ</a></p>
       <p><a href="/registration">新しいレビューを登録</a></p>
+      {html`
+        <script>
+const input = document.getElementById('search');
+const list = document.getElementById('suggest-list');
+let timer;                                    
+
+input.addEventListener('input', () => {       
+     clearTimeout(timer);
+     timer = setTimeout(async () => {
+          const q = input.value;
+          if (q === '') {
+               list.innerHTML = '';
+               return;
+          }
+          const res = await fetch('/api/suggest?q=' + encodeURIComponent(q));
+          const data = await res.json();
+          list.innerHTML = data.map(item => '<li>' + item.class_name + '</li>').join('');
+     }, 250);
+     
+});
+list.addEventListener('click',(e)=>{
+     input.value=e.target.textContent;
+     list.innerHTML='';
+})
+        </script>
+      `}
     </Layout>
   )//レビュー一覧で/reviewsに、新しいレビューを登録でapp.getの/registrationに飛ぶ
 });
