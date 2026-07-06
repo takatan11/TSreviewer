@@ -18,7 +18,7 @@ app.get('/', async(c) => {
   }
   return c.html(
     <Layout title="ホーム">
-      <h1>ようこそ、Reviewerへ</h1>
+      <h1>ようこそ</h1>
       <form class="search-card" method="get" action="/">
        <div class="search-group">
         <label for="search">検索欄</label>
@@ -27,15 +27,32 @@ app.get('/', async(c) => {
        </div>
        <button type="submit" class="btn">検索する</button>
       </form>
-      
-      <form class="choice" mthod="get" action="/">
-      <div>
-        <label></label>
-        <input></input>
-        <ul></ul>
-      </div>
-      <button></button>
+
+      <form  method="get" action="/">
+        <div class="faculty-select">
+          <label for="selecter">学部・学科から検索する</label><br></br>
+          <select id="selecter">
+            <option value="" disabled selected hidden>学部名</option>
+            <option>工学部</option>
+            <option>教育学部</option>
+            <option>応用生物学部</option>
+            <option>農学部</option>
+          </select>
+        </div>
       </form>
+
+      <form method="get" action="/">
+        <div class="department-select">
+          <select id='department-select'>
+            <option value="" disabled selected hidden>学科名</option>
+            <option>電気・電子情報工学科</option>
+            <option>応用生物学科</option>
+            <option>機械工学科</option>
+            <option>医学科</option>
+          </select>
+        </div>
+      </form>
+
       <p>下のボタンをクリックして！！！！！レビュー一覧を見て！！</p>
       <p><a href="/reviews">すべての授業を見に行く</a></p>
       <p><a href="/registration"></a></p>

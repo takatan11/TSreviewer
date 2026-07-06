@@ -1,4 +1,5 @@
 import type { Child } from 'hono/jsx'
+import { raw } from 'hono/html'
 
 // 全ページ共通の外枠。各画面はこの中に children として差し込まれる。
 // サイト共通の装飾（CSS）もここで一度だけ読み込む。
@@ -8,7 +9,7 @@ export const Layout = (props: { title: string; children: Child }) => (
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>{props.title}</title>
-      <style>{css}</style>
+      <style>{raw(css)}</style>
     </head>
     <body>
       <header class="site-header">
@@ -198,5 +199,15 @@ const css = `
   }
   .suggest-list li:hover {
     background: #f0f6ff;
+  }
+
+  /* ---- セレクトのプレースホルダー表示 ---- */
+  /* 未選択（value="" の option が選ばれている）ときだけ薄い灰色にする */
+  select:has(option[value=""]:checked) {
+    color: var(--muted);
+  }
+  /* 実際の項目を選んだら通常の文字色に戻す */
+  select option {
+    color: var(--text);
   }
 `
