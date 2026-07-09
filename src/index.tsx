@@ -5,98 +5,126 @@ import {supabase} from './db/index.js'
 import{html} from 'hono/html'
 const app = new Hono()
 app.get('/', async(c) => {
-  const q = c.req.query('q') ?? ''  
-  let query=supabase.from('subject').select('class_name').order('created_at', { ascending: false });
-  if(q){
-    query=query.ilike('class_name',`%${q}%`);
+  const keyword = c.req.query('q') ?? ''  ;
+  const faculty=c.req.query('faculty') ?? '';
+  const department=c.req.query('department') ?? '';
+  let courseQuery=supabase.from('subject').select('class_name,faculty,depart').order('created_at', { ascending: false });
+  if(keyword){
+    courseQuery=courseQuery.ilike('class_name',`%${keyword}%`);//検索用
   }
-  
-  const{data:courses,error}=await query; 
-    if(error){
-    console.error("読み取り失敗!!14行目");
-    return c.text("読み取り失敗！！"+error.message);
+  if(faculty){
+    courseQuery = courseQuery.eq('faculty', faculty);//学部検索
   }
+  if(department){
+    courseQuery=courseQuery.eq('depart',department);//学科検索
+  }
+  const{data:courses,error:readError}=await courseQuery;
+    if(readError){
+    console.error("読み取り失敗!!");
+    return c.text("読み取り失敗！！"+readError.message);//エラー処理
+  }
+   console.log(courses)//確認のログ出力
   return c.html(
     <Layout title="ホーム">
       <h1>ようこそ</h1>
       <form class="search-card" method="get" action="/">
        <div class="search-group">
         <label for="search">検索欄</label>
-        <input type="search" id="search" name="q" value={q} class="search-control" placeholder="授業名" />
+        <input type="search" id="search" name="q" value={keyword} class="search-control" placeholder="授業名" />
         <ul id="suggest-list" class="suggest-list"></ul>
        </div>
-       <button type="submit" class="btn">検索する</button>
-      </form>
-
-      <form  method="get" action="/">
-        <div class="faculty-select">
-          <label for="selecter">学部・学科から検索する</label><br></br>
-          <select id="selecter">
+        <div class="search-group">
+          <label for="faculty-select">学部</label>
+          <select id="faculty-select" class="search-control" name="faculty">
             <option value="" disabled selected hidden>学部名</option>
-            <option>工学部</option>
-            <option>教育学部</option>
-            <option>応用生物学部</option>
-            <option>農学部</option>
+            <option value="工学部">工学部</option>
+            <option value="教育学部">教育学部</option>
+            <option value="応用生物学部">応用生物学部</option>
+            <option value="農学部">農学部</option>
+            <option value="医学部">医学部</option>
           </select>
-        </div>
-      </form>
-
-      <form method="get" action="/">
-        <div class="department-select">
-          <select id='department-select'>
+        
+          <label for="department-select">学科</label>
+          <select id='department-select' class="search-control" name="department">
             <option value="" disabled selected hidden>学科名</option>
-            <option>電気・電子情報工学科</option>
-            <option>応用生物学科</option>
-            <option>機械工学科</option>
-            <option>医学科</option>
+            <option value="電気電子・情報工学科">電気電子・情報工学科</option>
+            <option value="応用生物学科">応用生物学科</option>
+            <option value="機械工学科">機械工学科</option>
+            <option value="医学科">医学科</option>
           </select>
         </div>
+        <button type="submit" class="btn">検索する</button>
       </form>
-
+      {(keyword || faculty || department) && (
+        <div class="course-list">
+          {courses?.map((course) => (
+            <a href={`/subject/${encodeURIComponent(course.class_name)}`} class="course-card">
+              {course.class_name}
+            </a>
+          ))}
+        </div>
+      )}
       <p>下のボタンをクリックして！！！！！レビュー一覧を見て！！</p>
       <p><a href="/reviews">すべての授業を見に行く</a></p>
-      <p><a href="/registration"></a></p>
+      <p><a href="/registration">コメントの追加</a></p>
+      <p><a href="/new-class">新しい授業の登録</a></p>
       {html`
         <script>
 const input = document.getElementById('search');
 const list = document.getElementById('suggest-list');
-let timer;                                    
+let timer;
 
-input.addEventListener('input', () => {       
+input.addEventListener('input', () => {
      clearTimeout(timer);
      timer = setTimeout(async () => {
-          const q = input.value;
-          if (q === '') {
+          const keyword = input.value;
+          if (keyword === '') {
                list.innerHTML = '';
                return;
           }
-          const res = await fetch('/api/suggest?q=' + encodeURIComponent(q));
-          const data = await res.json();
-          list.innerHTML = data.map(item => '<li>' + item.class_name + '</li>').join('');
+          const res = await fetch('/api/suggest?q=' + encodeURIComponent(keyword));
+          const suggestions = await res.json();
+          list.innerHTML = suggestions.map(suggestion => '<li>' + suggestion.class_name + '</li>').join('');
      }, 250);
-     
+
 });
 list.addEventListener('click',(e)=>{
      input.value=e.target.textContent;
      list.innerHTML='';
 })
         </script>
+
       `}
     </Layout>
   )//レビュー一覧で/reviewsに、新しいレビューを登録でapp.getの/registrationに飛ぶ
-});
+});//最初に出すページ。URLなどが付いたボタンも設置されている
 app.get('/api/suggest',async(c)=>{//検索のときにサジェストが出るようにするため、サーバーから情報をとってきている
-  const query=c.req.query('q');
-  if(!query){
+  const keyword=c.req.query('q');
+  if(!keyword){
     return c.json([]);
   }
-  const {data:search,error}=await supabase.from('subject').select('class_name').ilike('class_name',`${query}%`).limit(10);
-  if(error){
-    console.error('サジェスト取得失敗:', error);
-    return c.text('取得に失敗しました: ' + error.message, 500);
+  const {data:suggestions,error:suggestError}=await supabase.from('subject').select('class_name').ilike('class_name',`${keyword}%`).limit(10);
+  if(suggestError){
+    console.error('サジェスト取得失敗:', suggestError);
+    return c.text('取得に失敗しました: ' + suggestError.message, 500);
   };
-  return c.json(search??[]);
+  return c.json(suggestions??[]);
 })
+
+
+app.get('/subject/:name',(c)=>{
+  return c.html(
+    <h1>このページはそれぞれの授業の詳細、コメントを表示するページ。コメント入力はこのページ内に移動すること</h1>
+  )
+})//検索した後表示されるカードをクリックしたときに表示されるページの定義
+
+
+app.get('/new-class',(c)=>{
+  return c.html(
+    <h1>ここで授業を登録</h1>
+  )
+})//新しい授業の登録用のHTMLページを返す。formでapp.post('new-class')に入力を送り、登録作業を行う
+
 
 app.get('/registration',(c)=>{
   return c.html(
@@ -124,23 +152,25 @@ app.get('/registration',(c)=>{
         <button type="submit" class="btn">登録する</button>
       </form>
     </Layout>
-  )
+  )//コメントを入力するページ
 });
+
 
 app.post('/registration', async (c) => {
   const body = await c.req.parseBody();
-  const { data, error } = await supabase
+  const { data: insertedReview, error: insertError } = await supabase
     .from('review')
     .insert({ comment: body.review as string, score: body.score })
     .select();              // 挿入した行を返してもらう（成功確認用）
 
-  if (error) {
-    console.error('insert失敗:', error);   // ← ターミナルに原因が出る
-    return c.text('保存に失敗しました: ' + error.message, 500);
+  if (insertError) {
+    console.error('insert失敗:', insertError);   //ターミナルに原因が出る
+    return c.text('保存に失敗しました: ' + insertError.message, 500);
   }
-  console.log('insert成功:', data);
+  console.log('insert成功:', insertedReview);
   return c.redirect('/');
-}); //新しい投稿の登録の処理
+}); //新しい投稿の登録の処理。入力された内容をデータベースに登録
+
 
 serve({
   fetch: app.fetch,
