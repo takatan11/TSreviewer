@@ -121,7 +121,9 @@ app.get('/subject/:name',(c)=>{
 
 app.get('/new-class',(c)=>{
   return c.html(
-    <h1>ここで授業を登録</h1>
+    <Layout title='新しい授業の登録'>
+      <h1>新しく授業を登録する</h1>
+    </Layout>
   )
 })//新しい授業の登録用のHTMLページを返す。formでapp.post('new-class')に入力を送り、登録作業を行う
 
