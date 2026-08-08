@@ -64,7 +64,7 @@ app.get('/', async(c) => {
           ))}
         </div>
       )}
-      <p>下のボタンをクリックして！！！！！レビュー一覧を見て！！</p>
+      <p>下のボタンをクリックしてレビュー一覧をチェック</p>
       <p><a href="/reviews">すべての授業を見に行く</a></p>
       <p><a href="/registration">コメントの追加</a></p>
       <p><a href="/new-class">新しい授業の登録</a></p>
@@ -123,6 +123,32 @@ app.get('/new-class',(c)=>{
   return c.html(
     <Layout title='新しい授業の登録'>
       <h1>新しく授業を登録する</h1>
+      <form class="new-class" method="post" action="/new-class">
+        <div class="new-class">
+        <label for="class-name">授業名</label>
+          <input type="text" id="class-name" name="class_name" class="form-control" placeholder='授業名を入力してください'></input>
+        </div>
+        <div>
+          <label for="semester">開講時期</label>
+            <select id='semester' name='semester'>
+              <option>前期</option>
+              <option>後期</option>
+              <option></option>
+            </select>
+        </div>
+        <div>
+          <label for="period">時限</label>
+        </div>
+        <div>
+          <label for="faculty">学部</label>
+        </div>
+        <div>
+          <label for="depart">学科</label>
+        </div>
+        <div>
+          <label for="weekday">曜日</label>
+        </div>
+      </form>
     </Layout>
   )
 })//新しい授業の登録用のHTMLページを返す。formでapp.post('new-class')に入力を送り、登録作業を行う
@@ -163,10 +189,10 @@ app.post('/registration', async (c) => {
   const { data: insertedReview, error: insertError } = await supabase
     .from('review')
     .insert({ comment: body.review as string, score: body.score })
-    .select();              // 挿入した行を返してもらう（成功確認用）
+    .select();              // 挿入した行を返してもらう
 
   if (insertError) {
-    console.error('insert失敗:', insertError);   //ターミナルに原因が出る
+    console.error('insert失敗:', insertError);
     return c.text('保存に失敗しました: ' + insertError.message, 500);
   }
   console.log('insert成功:', insertedReview);
