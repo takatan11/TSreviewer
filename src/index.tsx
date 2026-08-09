@@ -133,11 +133,12 @@ app.get('/new-class',(c)=>{
             <select id='semester' name='semester'>
               <option>前期</option>
               <option>後期</option>
-              <option></option>
             </select>
         </div>
         <div>
           <label for="period">時限</label>
+           <option>1限</option>
+           
         </div>
         <div>
           <label for="faculty">学部</label>
