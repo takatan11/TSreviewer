@@ -114,7 +114,7 @@ app.get('/api/suggest',async(c)=>{//検索のときにサジェストが出る�
 
 app.get('/subject/:name',(c)=>{
   return c.html(
-    <h1>このページはそれぞれの授業の詳細、コメントを表示するページ。コメント入力はこのページ内に移動すること</h1>
+    <h1>ニャーーーん</h1>
   )
 })//検索した後表示されるカードをクリックしたときに表示されるページの定義
 
@@ -125,8 +125,8 @@ app.get('/new-class',(c)=>{
       <h1>新しく授業を登録する</h1>
       <form class="new-class" method="post" action="/new-class">
         <div class="new-class">
-        <label for="class-name">授業名</label>
-          <input type="text" id="class-name" name="class_name" class="form-control" placeholder='授業名を入力してください'></input>
+          <label for="class-name">授業名</label>
+            <input type="text" id="class-name" name="class_name" class="form-control" placeholder='授業名を入力してください'></input>
         </div>
         <div>
           <label for="semester">開講時期</label>
@@ -137,22 +137,62 @@ app.get('/new-class',(c)=>{
         </div>
         <div>
           <label for="period">時限</label>
-           <option>1限</option>
-           
+            <select>
+              <option>1限</option>
+              <option>2限</option>
+              <option>3限</option>
+              <option>4限</option>
+              <option>5限</option>
+              <option>6限</option>       
+            </select>    
         </div>
         <div>
           <label for="faculty">学部</label>
+            <select>
+                <option>工学部（仮）</option>
+                <option>教育学部</option>
+                <option>ほかの学部</option>
+            </select>
         </div>
         <div>
           <label for="depart">学科</label>
+           <select>
+              <option>電気電子・情報工学科</option>
+              <option>教育学科</option>
+              <option>ほかの学科後で入れる</option>
+           </select>
         </div>
         <div>
           <label for="weekday">曜日</label>
+            <select>
+              <option>月曜日</option>
+              <option>火曜日</option>
+              <option>水曜日</option>
+              <option>木曜日</option>
+              <option>金曜日</option>
+              <option>特別日程</option>
+            </select>
         </div>
+        <button type='submit' class="button">登録</button>
       </form>
     </Layout>
   )
 })//新しい授業の登録用のHTMLページを返す。formでapp.post('new-class')に入力を送り、登録作業を行う
+
+app.post('/new-class', async(c)=>{
+  const body= await c.req.parseBody();
+  const {data:insertReview,error:insertError} =await supabase
+  .from('')//テーブルの名前を代入すること
+  .insert() //カラム名をとってきて、それに対応した入力内容を保存
+  .select();
+
+  if(insertError){
+    console.log('登録に失敗しました',insertError);
+    return c.text('登録に失敗しました'+insertError.message,500);
+  }
+  console.log('登録に成功しました',insertReview);
+  return c.redirect('/');
+});
 
 
 app.get('/registration',(c)=>{
@@ -163,10 +203,6 @@ app.get('/registration',(c)=>{
         <div class="form-group">
           <label for="review">レビュー内容</label>
           <textarea id="review" name="review" class="form-control" placeholder="授業の感想を入力してください"></textarea>
-        </div>
-        <div class="form-group">
-          <label for="instructor">講師名</label>
-          <input type="text" id="instructor" name="instructor" class="form-control" placeholder="例：山田太郎" />
         </div>
         <div class="form-group">
           <label for="score">評価点数</label>
@@ -198,7 +234,7 @@ app.post('/registration', async (c) => {
   }
   console.log('insert成功:', insertedReview);
   return c.redirect('/');
-}); //新しい投稿の登録の処理。入力された内容をデータベースに登録
+}); //新しい投稿の登録の処理。入力された内容をデータベースに登録   入力してもらった
 
 
 serve({
