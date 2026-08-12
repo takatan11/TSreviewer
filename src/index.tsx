@@ -98,6 +98,14 @@ list.addEventListener('click',(e)=>{
     </Layout>
   )//レビュー一覧で/reviewsに、新しいレビューを登録でapp.getの/registrationに飛ぶ
 });//最初に出すページ。URLなどが付いたボタンも設置されている
+
+
+app.get('/reviews',async(c)=>{
+  return c.html(
+    <h1>ここに全授業のカードを表示</h1>
+  )
+})
+
 app.get('/api/suggest',async(c)=>{//検索のときにサジェストが出るようにするため、サーバーから情報をとってきている
   const keyword=c.req.query('q');
   if(!keyword){
@@ -112,10 +120,9 @@ app.get('/api/suggest',async(c)=>{//検索のときにサジェストが出る�
 })
 
 
-app.get('/subject/:name',(c)=>{
-  return c.html(
-    <h1>ニャーーーん</h1>
-  )
+app.get('/subject/:name',async(c)=>{
+  const name=c.req.param('name');
+  supabase.from('').select('*').eq('class-name',name).single();
 })//検索した後表示されるカードをクリックしたときに表示されるページの定義
 
 
@@ -133,6 +140,7 @@ app.get('/new-class',(c)=>{
             <select id='semester' name='semester'>
               <option>前期</option>
               <option>後期</option>
+              <option>通年</option>
             </select>
         </div>
         <div>
@@ -143,7 +151,7 @@ app.get('/new-class',(c)=>{
               <option>3限</option>
               <option>4限</option>
               <option>5限</option>
-              <option>6限</option>       
+              <option>6限</option>   
             </select>    
         </div>
         <div>
@@ -163,7 +171,7 @@ app.get('/new-class',(c)=>{
            </select>
         </div>
         <div>
-          <label for="weekday">曜日</label>
+          <label for="days">曜日</label>
             <select>
               <option>月曜日</option>
               <option>火曜日</option>
@@ -173,6 +181,17 @@ app.get('/new-class',(c)=>{
               <option>特別日程</option>
             </select>
         </div>
+
+        <div>
+          <label for="point">単位数</label>
+            <select>
+              <option>0.5</option>
+              <option>1</option>
+              <option>2</option>
+              <option>カスタム</option>
+            </select>
+        </div>
+
         <button type='submit' class="button">登録</button>
       </form>
     </Layout>
