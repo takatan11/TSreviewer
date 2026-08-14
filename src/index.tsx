@@ -121,9 +121,12 @@ app.get('/api/suggest',async(c)=>{//検索のときにサジェストが出る�
 
 
 app.get('/subject/:name',async(c)=>{
-  const name=c.req.param('name');
-  supabase.from('').select('*').eq('class-name',name).single();
-})//検索した後表示されるカードをクリックしたときに表示されるページの定義
+  const name = c.req.param('name')
+  const { data: subject, error } = await supabase
+    .from('subject').select('*').eq('class_name', name).single()
+  if (error || !subject) return c.text('授業が見つかりません', 404)
+  return c.html(<Layout title={subject.class_name}> ... </Layout>)
+})//検索した後表示されるカードをクリックしたときに表示されるページの定義。まだ制作中
 
 
 app.get('/new-class',(c)=>{
@@ -132,7 +135,7 @@ app.get('/new-class',(c)=>{
       <h1>新しく授業を登録する</h1>
       <form class="new-class" method="post" action="/new-class">
         <div class="new-class">
-          <label for="class-name">授業名</label>
+          <label for="class">授業名</label>
             <input type="text" id="class-name" name="class_name" class="form-control" placeholder='授業名を入力してください'></input>
         </div>
         <div>
@@ -145,7 +148,7 @@ app.get('/new-class',(c)=>{
         </div>
         <div>
           <label for="period">時限</label>
-            <select>
+            <select id="period" name='period'>
               <option>1限</option>
               <option>2限</option>
               <option>3限</option>
@@ -156,15 +159,17 @@ app.get('/new-class',(c)=>{
         </div>
         <div>
           <label for="faculty">学部</label>
-            <select>
-                <option>工学部（仮）</option>
+            <select id='faculty' name='faculty'>
+                <option>工学部</option>
                 <option>教育学部</option>
-                <option>ほかの学部</option>
+                <option>応用生物学部</option>
+                <option>獣医学部</option>
+                <option>医学部</option>
             </select>
         </div>
         <div>
           <label for="depart">学科</label>
-           <select>
+           <select id='depart' name='depart'>
               <option>電気電子・情報工学科</option>
               <option>教育学科</option>
               <option>ほかの学科後で入れる</option>
@@ -172,7 +177,7 @@ app.get('/new-class',(c)=>{
         </div>
         <div>
           <label for="days">曜日</label>
-            <select>
+            <select id='days' name='days'>
               <option>月曜日</option>
               <option>火曜日</option>
               <option>水曜日</option>
@@ -184,7 +189,7 @@ app.get('/new-class',(c)=>{
 
         <div>
           <label for="point">単位数</label>
-            <select>
+            <select id='point' name='point'>
               <option>0.5</option>
               <option>1</option>
               <option>2</option>
@@ -192,17 +197,31 @@ app.get('/new-class',(c)=>{
             </select>
         </div>
 
+        <div>
+          <label for='judge'>評価点</label>
+           <select id='judge' name='judge'>
+            <option value="5">★★★★★ 5</option>
+            <option value="4">★★★★ 4</option>
+            <option value="3">★★★ 3</option>
+            <option value="2">★★ 2</option>
+            <option value="1">★ 1</option>
+           </select>
+        </div>
+
         <button type='submit' class="button">登録</button>
       </form>
     </Layout>
   )
 })//新しい授業の登録用のHTMLページを返す。formでapp.post('new-class')に入力を送り、登録作業を行う
-
 app.post('/new-class', async(c)=>{
   const body= await c.req.parseBody();
   const {data:insertReview,error:insertError} =await supabase
-  .from('')//テーブルの名前を代入すること
-  .insert() //カラム名をとってきて、それに対応した入力内容を保存
+  .from('subject')
+  .insert({
+    class_name:body.class as string,class_year:body.semester,
+    period:body.period,faculty:body.faculty,depart:body.depart,
+    days:body.days,point:body.point
+  }) //カラム名をとってきて、それに対応した入力内容を保存
   .select();
 
   if(insertError){
@@ -210,8 +229,15 @@ app.post('/new-class', async(c)=>{
     return c.text('登録に失敗しました'+insertError.message,500);
   }
   console.log('登録に成功しました',insertReview);
-  return c.redirect('/');
-});
+  return c.redirect('/appriciate');
+});//一旦完成か
+
+app.get('/appriciate',(c)=>{
+  return c.html(
+    <p><a href='/'>ホーム画面へ戻る</a></p>
+  )
+})//登録のお礼が出る画面
+
 
 
 app.get('/registration',(c)=>{
