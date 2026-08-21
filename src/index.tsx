@@ -197,17 +197,6 @@ app.get('/new-class',(c)=>{
             </select>
         </div>
 
-        <div>
-          <label for='judge'>評価点</label>
-           <select id='judge' name='judge'>
-            <option value="5">★★★★★ 5</option>
-            <option value="4">★★★★ 4</option>
-            <option value="3">★★★ 3</option>
-            <option value="2">★★ 2</option>
-            <option value="1">★ 1</option>
-           </select>
-        </div>
-
         <button type='submit' class="button">登録</button>
       </form>
     </Layout>
@@ -218,7 +207,7 @@ app.post('/new-class', async(c)=>{
   const {data:insertReview,error:insertError} =await supabase
   .from('subject')
   .insert({
-    class_name:body.class as string,class_year:body.semester,
+    class_name:body.class_name as string,class_year:body.semester,
     period:body.period,faculty:body.faculty,depart:body.depart,
     days:body.days,point:body.point
   }) //カラム名をとってきて、それに対応した入力内容を保存
