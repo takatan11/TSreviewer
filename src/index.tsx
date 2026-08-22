@@ -139,6 +139,10 @@ app.get('/new-class',(c)=>{
             <input type="text" id="class-name" name="class_name" class="form-control" placeholder='授業名を入力してください'></input>
         </div>
         <div>
+          <label for="about">授業概要</label>
+          <input type='text' id="class_about" name='class_about' placeholder='概要を入力してください'></input>
+        </div>
+        <div>
           <label for="semester">開講時期</label>
             <select id='semester' name='semester'>
               <option>前期</option>
@@ -149,12 +153,12 @@ app.get('/new-class',(c)=>{
         <div>
           <label for="period">時限</label>
             <select id="period" name='period'>
-              <option>1限</option>
-              <option>2限</option>
-              <option>3限</option>
-              <option>4限</option>
-              <option>5限</option>
-              <option>6限</option>   
+              <option value="1">1限</option>
+              <option value="2">2限</option>
+              <option value="3">3限</option>
+              <option value="4">4限</option>
+              <option value="5">5限</option>
+              <option value="6">6限</option>   
             </select>    
         </div>
         <div>
@@ -190,10 +194,8 @@ app.get('/new-class',(c)=>{
         <div>
           <label for="point">単位数</label>
             <select id='point' name='point'>
-              <option>0.5</option>
               <option>1</option>
               <option>2</option>
-              <option>カスタム</option>
             </select>
         </div>
 
@@ -202,24 +204,43 @@ app.get('/new-class',(c)=>{
     </Layout>
   )
 })//新しい授業の登録用のHTMLページを返す。formでapp.post('new-class')に入力を送り、登録作業を行う
-app.post('/new-class', async(c)=>{
-  const body= await c.req.parseBody();
-  const {data:insertReview,error:insertError} =await supabase
-  .from('subject')
-  .insert({
-    class_name:body.class_name as string,class_year:body.semester,
-    period:body.period,faculty:body.faculty,depart:body.depart,
-    days:body.days,point:body.point
-  }) //カラム名をとってきて、それに対応した入力内容を保存
-  .select();
+app.post('/new-class', async (c) => {
+  const body = await c.req.parseBody();
 
-  if(insertError){
-    console.log('登録に失敗しました',insertError);
-    return c.text('登録に失敗しました'+insertError.message,500);
+  const { data: subject, error: subjectError }=await supabase
+    .from('subject')
+    .insert({
+      class_name: body.class_name as string,
+      semester: body.semester   as string,
+      faculty:    body.faculty    as string,
+      depart:     body.depart     as string,
+      class_about:body.class_about as string,
+      point:body.point as string
+    })
+    .select()
+    .single();
+
+  if (subjectError || !subject) {
+    console.error('授業の登録に失敗', subjectError);
+    return c.text('授業の登録に失敗しました: ' + subjectError?.message, 500);
   }
-  console.log('登録に成功しました',insertReview);
+
+  // ② 子テーブル subject_slot に、①の id を subject_id として保存
+  const { error: slotError } = await supabase
+    .from('subject_slot')
+    .insert({
+      subject_id: subject.id,          
+      day:        body.days as string,
+      period:     Number(body.period), 
+    });
+
+  if (slotError) {
+    console.error('コマの登録に失敗', slotError);
+    return c.text('コマの登録に失敗しました: ' + slotError.message, 500);
+  }
+
   return c.redirect('/appriciate');
-});//一旦完成か
+});//授業(subject)と時限(subject_slot)の2テーブルに分けて保存
 
 app.get('/appriciate',(c)=>{
   return c.html(
