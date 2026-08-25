@@ -8,7 +8,11 @@ app.get('/', async(c) => {
   const keyword = c.req.query('q') ?? ''  ;
   const faculty=c.req.query('faculty') ?? '';
   const department=c.req.query('department') ?? '';
-  let courseQuery=supabase.from('subject').select('class_name,faculty,depart').order('created_at', { ascending: false });
+  let courseQuery=supabase
+  .from('subject')
+  .select('class_name,faculty,depart')
+  .order('created_at', { ascending: false });
+
   if(keyword){
     courseQuery=courseQuery.ilike('class_name',`%${keyword}%`);//検索用
   }
@@ -55,6 +59,7 @@ app.get('/', async(c) => {
         </div>
         <button type="submit" class="btn">検索する</button>
       </form>
+      <div id='class-list' class='course-list'></div>
       {(keyword || faculty || department) && (
         <div class="course-list">
           {courses?.map((course) => (
@@ -64,14 +69,15 @@ app.get('/', async(c) => {
           ))}
         </div>
       )}
-      <p>下のボタンをクリックしてレビュー一覧をチェック</p>
-      <p><a href="/reviews">すべての授業を見に行く</a></p>
+      <button type='button' id='show-all'>すべての授業を見に行く</button>
       <p><a href="/registration">コメントの追加</a></p>
       <p><a href="/new-class">新しい授業の登録</a></p>
       {html`
         <script>
 const input = document.getElementById('search');
 const list = document.getElementById('suggest-list');
+const getall=document.getElementById('show-all');
+const listBox=document.getElementById('class-list');
 let timer;
 
 input.addEventListener('input', () => {
@@ -92,6 +98,12 @@ list.addEventListener('click',(e)=>{
      input.value=e.target.textContent;
      list.innerHTML='';
 })
+
+getall.addEventListener('click',async (e)=>{
+  const res=await fetch('/allclass');
+  const courses=await res.json();
+  listBox.innerHTML=courses.map(course=>'<a class="course-card" href="/subject/'+encodeURIComponent(course.class_name)+'">'+course.class_name+'</a>').join('')
+})
         </script>
 
       `}
@@ -100,11 +112,19 @@ list.addEventListener('click',(e)=>{
 });//最初に出すページ。URLなどが付いたボタンも設置されている
 
 
-app.get('/reviews',async(c)=>{
-  return c.html(
-    <h1>ここに全授業のカードを表示</h1>
-  )
-})
+app.get('/allclass',async(c)=>{
+  const {data:allClass,error:classError}=await supabase
+  .from('subject')
+  .select('class_name');
+
+  if(classError){
+    console.error('サジェスト取得失敗:', classError);
+    return c.text('取得に失敗しました: ' + classError.message, 500);
+  };
+
+  return c.json(allClass??[]);
+})//すべての授業を表示させるとき画面下部にカードが出る
+
 
 app.get('/api/suggest',async(c)=>{//検索のときにサジェストが出るようにするため、サーバーから情報をとってきている
   const keyword=c.req.query('q');
@@ -204,6 +224,8 @@ app.get('/new-class',(c)=>{
     </Layout>
   )
 })//新しい授業の登録用のHTMLページを返す。formでapp.post('new-class')に入力を送り、登録作業を行う
+
+
 app.post('/new-class', async (c) => {
   const body = await c.req.parseBody();
 
@@ -242,9 +264,13 @@ app.post('/new-class', async (c) => {
   return c.redirect('/appriciate');
 });//授業(subject)と時限(subject_slot)の2テーブルに分けて保存
 
+
 app.get('/appriciate',(c)=>{
   return c.html(
+    <div>
+    <h1>協力ありがとうございました！！</h1>
     <p><a href='/'>ホーム画面へ戻る</a></p>
+    </div>
   )
 })//登録のお礼が出る画面
 
