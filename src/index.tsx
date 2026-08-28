@@ -141,11 +141,14 @@ app.get('/api/suggest',async(c)=>{//検索のときにサジェストが出る�
 
 
 app.get('/subject/:name',async(c)=>{
-  const name = c.req.param('name')
+  const name = c.req.param('name') //URLの:nameの部分を取り出してname変数に入れている
   const { data: subject, error } = await supabase
-    .from('subject').select('*').eq('class_name', name).single()
+    .from('subject')
+    .select('*')
+    .eq('class_name', name)
+    .single();
   if (error || !subject) return c.text('授業が見つかりません', 404)
-  return c.html(<Layout title={subject.class_name}> ... </Layout>)
+  return c.json(subject);
 })//検索した後表示されるカードをクリックしたときに表示されるページの定義。まだ制作中
 
 
