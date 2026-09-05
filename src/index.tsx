@@ -30,48 +30,54 @@ app.get('/', async(c) => {
    console.log(courses)//確認のログ出力
   return c.html(
     <Layout title="ホーム">
-      <h1>ようこそ</h1>
-      <form class="search-card" method="get" action="/">
-       <div class="search-group">
-        <label for="search">検索欄</label>
-        <input type="search" id="search" name="q" value={keyword} class="search-control" placeholder="授業名" />
-        <ul id="suggest-list" class="suggest-list"></ul>
-       </div>
-        <div class="search-group">
-          <label for="faculty-select">学部</label>
-          <select id="faculty-select" class="search-control" name="faculty">
-            <option value="" disabled selected hidden>学部名</option>
-            <option value="工学部">工学部</option>
-            <option value="教育学部">教育学部</option>
-            <option value="応用生物学部">応用生物学部</option>
-            <option value="農学部">農学部</option>
-            <option value="医学部">医学部</option>
-          </select>
-        
-          <label for="department-select">学科</label>
-          <select id='department-select' class="search-control" name="department">
-            <option value="" disabled selected hidden>学科名</option>
-            <option value="電気電子・情報工学科">電気電子・情報工学科</option>
-            <option value="応用生物学科">応用生物学科</option>
-            <option value="機械工学科">機械工学科</option>
-            <option value="医学科">医学科</option>
-          </select>
-        </div>
-        <button type="submit" class="btn">検索する</button>
-      </form>
+      <section class="home-hero">
+        <h1 class="home-title">授業を探す</h1>
+        <form class="search-card" method="get" action="/">
+          <div class="search-row">
+            <div class="search-group">
+              <input type="search" id="search" name="q" value={keyword} class="search-control search-input" placeholder="授業名で検索" autocomplete="off" />
+              <ul id="suggest-list" class="suggest-list"></ul>
+            </div>
+            <button type="submit" class="btn">検索</button>
+          </div>
+          <div class="filter-row">
+            <select id="faculty-select" class="search-control" name="faculty">
+              <option value="" disabled selected hidden>学部を選択</option>
+              <option value="工学部">工学部</option>
+              <option value="教育学部">教育学部</option>
+              <option value="応用生物学部">応用生物学部</option>
+              <option value="農学部">農学部</option>
+              <option value="医学部">医学部</option>
+            </select>
+            <select id='department-select' class="search-control" name="department">
+              <option value="" disabled selected hidden>学科を選択</option>
+              <option value="電気電子・情報工学科">電気電子・情報工学科</option>
+              <option value="応用生物学科">応用生物学科</option>
+              <option value="機械工学科">機械工学科</option>
+              <option value="医学科">医学科</option>
+            </select>
+            <button type='button' id='show-all'>すべての授業</button>
+          </div>
+        </form>
+      </section>
+
       <div id='class-list' class='course-list'></div>
       {(keyword || faculty || department) && (
-        <div class="course-list">
-          {courses?.map((course) => (
-            <a href={`/subject/${encodeURIComponent(course.class_name)}`} class="course-card">
-              {course.class_name}
-            </a>
-          ))}
-        </div>
+        courses && courses.length > 0 ? (
+          <div class="course-list">
+            {courses.map((course) => (
+              <a href={`/subject/${encodeURIComponent(course.class_name)}`} class="course-card">
+                <div class="thumb">
+                  <div class="thumb-title">{course.class_name}</div>
+                  <div class="thumb-meta">{[course.faculty, course.depart].filter(Boolean).join(' · ')}</div>
+                </div>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <p class="empty-note">該当する授業が見つかりませんでした。</p>
+        )
       )}
-      <button type='button' id='show-all'>すべての授業を見に行く</button>
-      <p><a href="/registration">コメントの追加</a></p>
-      <p><a href="/new-class">新しい授業の登録</a></p>
       {html`
         <script>
 const input = document.getElementById('search');
@@ -102,20 +108,27 @@ list.addEventListener('click',(e)=>{
 getall.addEventListener('click',async (e)=>{
   const res=await fetch('/allclass');
   const courses=await res.json();
-  listBox.innerHTML=courses.map(course=>'<a class="course-card" href="/subject/'+encodeURIComponent(course.class_name)+'">'+course.class_name+'</a>').join('')
+  listBox.innerHTML=courses.map(course=>{
+    const meta=[course.faculty,course.depart].filter(Boolean).join(' · ');
+    return '<a class="course-card" href="/subject/'+encodeURIComponent(course.class_name)+'">'
+      +'<div class="thumb"><div class="thumb-title">'+course.class_name+'</div>'
+      +'<div class="thumb-meta">'+meta+'</div></div>'
+      +'</a>';
+  }).join('')
 })
         </script>
 
       `}
     </Layout>
   )//レビュー一覧で/reviewsに、新しいレビューを登録でapp.getの/registrationに飛ぶ
-});//最初に出すページ。URLなどが付いたボタンも設置されている
+});//最初に出すページ。URLなどが付いたボタンも設置されている。水色の部分はページ上に
+   //配置されているボタンが押されたときに何が起きるのかaddEventLiisterで定義している
 
 
 app.get('/allclass',async(c)=>{
   const {data:allClass,error:classError}=await supabase
   .from('subject')
-  .select('class_name');
+  .select('class_name,faculty,depart');
 
   if(classError){
     console.error('サジェスト取得失敗:', classError);
@@ -131,7 +144,11 @@ app.get('/api/suggest',async(c)=>{//検索のときにサジェストが出る�
   if(!keyword){
     return c.json([]);
   }
-  const {data:suggestions,error:suggestError}=await supabase.from('subject').select('class_name').ilike('class_name',`${keyword}%`).limit(10);
+  const {data:suggestions,error:suggestError}=await supabase
+  .from('subject')
+  .select('class_name')
+  .ilike('class_name',`${keyword}%`)
+  .limit(10);
   if(suggestError){
     console.error('サジェスト取得失敗:', suggestError);
     return c.text('取得に失敗しました: ' + suggestError.message, 500);
@@ -148,8 +165,76 @@ app.get('/subject/:name',async(c)=>{
     .eq('class_name', name)
     .single();
   if (error || !subject) return c.text('授業が見つかりません', 404)
-  return c.json(subject);
-})//検索した後表示されるカードをクリックしたときに表示されるページの定義。まだ制作中
+
+  // 開講コマ（複数）を取得
+  const { data: slots } = await supabase
+    .from('subject_slot')
+    .select('day, period')
+    .eq('subject_id', subject.id);
+
+  // レビュー（新しい順）を取得。subject_id 未整備でも落ちないよう別クエリに分離
+  const { data: reviews } = await supabase
+    .from('review')
+    .select('comment, score, created_at')
+    .eq('subject_id', subject.id)
+    .order('created_at', { ascending: false });
+
+  const slotList = slots ?? [];
+  const reviewList = reviews ?? [];
+
+  return c.html(
+    <Layout title={subject.class_name}>
+      <p class="back-link"><a href="/">← ホームに戻る</a></p>
+
+      <div class="subject-detail">
+        <h1>{subject.class_name}</h1>
+        <div class="detail-meta">
+          {subject.faculty  && <span class="badge">{subject.faculty}</span>}
+          {subject.depart   && <span class="badge">{subject.depart}</span>}
+          {subject.semester && <span class="badge">{subject.semester}</span>}
+          {subject.point    && <span class="badge">{subject.point}単位</span>}
+        </div>
+      </div>
+
+      <section class="detail-section">
+        <h2>授業概要</h2>
+        <p class="detail-text">{subject.class_about || '概要は登録されていません。'}</p>
+      </section>
+
+      <section class="detail-section">
+        <h2>開講コマ</h2>
+        {slotList.length > 0 ? (
+          <ul class="slot-list">
+            {slotList.map((slot) => (
+              <li class="slot-item">{slot.day} {slot.period}限</li>
+            ))}
+          </ul>
+        ) : (
+          <p class="detail-text">開講コマは登録されていません。</p>
+        )}
+      </section>
+
+      <section class="detail-section">
+        <h2>レビュー（{reviewList.length}件）</h2>
+        {reviewList.length > 0 ? (
+          <div class="review-list">
+            {reviewList.map((review) => (
+              <div class="review-item">
+                <div class="review-score">
+                  {'★'.repeat(Number(review.score) || 0)}
+                  <span class="review-score-num">{review.score}</span>
+                </div>
+                <p class="review-comment">{review.comment}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p class="detail-text">まだレビューがありません。<a href="/registration">最初のレビューを書く</a></p>
+        )}
+      </section>
+    </Layout>
+  )
+})//検索したカードをクリックしたときの授業詳細ページ。概要・開講コマ・レビュー一覧を表示
 
 
 app.get('/new-class',(c)=>{
@@ -270,10 +355,12 @@ app.post('/new-class', async (c) => {
 
 app.get('/appriciate',(c)=>{
   return c.html(
-    <div>
-    <h1>協力ありがとうございました！！</h1>
-    <p><a href='/'>ホーム画面へ戻る</a></p>
-    </div>
+    <Layout title="ありがとうございました">
+      <div class="notice">
+        <h1>協力ありがとうございました！</h1>
+        <p><a href='/' class="btn">ホームに戻る</a></p>
+      </div>
+    </Layout>
   )
 })//登録のお礼が出る画面
 
