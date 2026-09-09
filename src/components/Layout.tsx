@@ -28,7 +28,6 @@ export const Layout = (props: { title: string; children: Child }) => (
             </a>
             <nav class="site-nav">
               <a href="/new-class">授業を登録</a>
-              <a href="/registration">レビューを書く</a>
             </nav>
           </div>
         </header>
@@ -357,6 +356,15 @@ const css = `
     color: var(--text-2);
     margin-bottom: 0.75rem;
   }
+  .detail-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  .detail-section-head h2 { margin-bottom: 0; }
+  .btn-sm { height: 34px; padding: 0 1rem; font-size: 0.82rem; }
   .detail-text { margin: 0; }
   .detail-text a { color: var(--accent); font-weight: 500; margin-left: 0.4rem; }
   .slot-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }

@@ -27,7 +27,6 @@ app.get('/', async(c) => {
     console.error("読み取り失敗!!");
     return c.text("読み取り失敗！！"+readError.message);//エラー処理
   }
-   console.log(courses)//確認のログ出力
   return c.html(
     <Layout title="ホーム">
       <section class="home-hero">
@@ -166,18 +165,17 @@ app.get('/subject/:name',async(c)=>{
     .single();
   if (error || !subject) return c.text('授業が見つかりません', 404)
 
-  // 開講コマ（複数）を取得
-  const { data: slots } = await supabase
-    .from('subject_slot')
-    .select('day, period')
-    .eq('subject_id', subject.id);
+  // 開講コマ（複数）とレビュー（新しい順）を並列取得
+  const [{data:slots},{data:reviews}]=await Promise.all([
+    supabase.from('subject_slot')
+            .select('day,period')
+            .eq('subject_id', subject.id),
 
-  // レビュー（新しい順）を取得。subject_id 未整備でも落ちないよう別クエリに分離
-  const { data: reviews } = await supabase
-    .from('review')
-    .select('comment, score, created_at')
-    .eq('subject_id', subject.id)
-    .order('created_at', { ascending: false });
+    supabase.from('review')
+            .select('comment, score, created_at')
+            .eq('subject_id', subject.id)
+            .order('created_at', { ascending: false }),
+]);
 
   const slotList = slots ?? [];
   const reviewList = reviews ?? [];
@@ -215,7 +213,10 @@ app.get('/subject/:name',async(c)=>{
       </section>
 
       <section class="detail-section">
-        <h2>レビュー（{reviewList.length}件）</h2>
+        <div class="detail-section-head">
+          <h2>レビュー（{reviewList.length}件）</h2>
+          <a href={`/new-review?subject_id=${subject.id}`} class="btn btn-sm">レビューを書く</a>
+        </div>
         {reviewList.length > 0 ? (
           <div class="review-list">
             {reviewList.map((review) => (
@@ -229,7 +230,7 @@ app.get('/subject/:name',async(c)=>{
             ))}
           </div>
         ) : (
-          <p class="detail-text">まだレビューがありません。<a href="/registration">最初のレビューを書く</a></p>
+          <p class="detail-text">まだレビューがありません。</p>
         )}
       </section>
     </Layout>
@@ -275,7 +276,7 @@ app.get('/new-class',(c)=>{
                 <option>工学部</option>
                 <option>教育学部</option>
                 <option>応用生物学部</option>
-                <option>獣医学部</option>
+                <option>農学部</option>
                 <option>医学部</option>
             </select>
         </div>
@@ -283,8 +284,9 @@ app.get('/new-class',(c)=>{
           <label for="depart">学科</label>
            <select id='depart' name='depart'>
               <option>電気電子・情報工学科</option>
-              <option>教育学科</option>
-              <option>ほかの学科後で入れる</option>
+              <option>応用生物学科</option>
+              <option>機械工学科</option>
+              <option>医学科</option>
            </select>
         </div>
         <div>
@@ -366,11 +368,12 @@ app.get('/appriciate',(c)=>{
 
 
 
-app.get('/registration',(c)=>{
+app.get('/new-review',(c)=>{
+  const classid=c.req.query('subject_id');
   return c.html(
     <Layout title="レビュー登録">
       <h1>レビュー登録</h1>
-      <form class="form-card" method="post" action="/registration">
+      <form class="form-card" method="post" action="/new-review">
         <div class="form-group">
           <label for="review">レビュー内容</label>
           <textarea id="review" name="review" class="form-control" placeholder="授業の感想を入力してください"></textarea>
@@ -385,6 +388,16 @@ app.get('/registration',(c)=>{
             <option value="1">★ 1</option>
           </select>
         </div>
+        <div class="form-group">
+          <label for="attendance">出席の有無</label>
+          <select id="attendance" name="attendance" class="form-control">
+            <option value="0">毎回ある</option>
+            <option value="1">なし</option>
+            <option value="2">出席課題のみ</option>
+            <option value="3">不定期にとる</option>
+          </select>
+        </div>
+        <input type="hidden" name="subject_id" value={classid} />
         <button type="submit" class="btn">登録する</button>
       </form>
     </Layout>
@@ -392,11 +405,11 @@ app.get('/registration',(c)=>{
 });
 
 
-app.post('/registration', async (c) => {
+app.post('/new-review', async (c) => {
   const body = await c.req.parseBody();
   const { data: insertedReview, error: insertError } = await supabase
     .from('review')
-    .insert({ comment: body.review as string, score: body.score })
+    .insert({ comment: body.review as string, score: body.score,attendance:Number(body.attendance), subject_id:Number(body.subject_id)})
     .select();              // 挿入した行を返してもらう
 
   if (insertError) {
@@ -404,7 +417,7 @@ app.post('/registration', async (c) => {
     return c.text('保存に失敗しました: ' + insertError.message, 500);
   }
   console.log('insert成功:', insertedReview);
-  return c.redirect('/');
+  return c.redirect('/appriciate');
 }); //新しい投稿の登録の処理。入力された内容をデータベースに登録   入力してもらった
 
 
