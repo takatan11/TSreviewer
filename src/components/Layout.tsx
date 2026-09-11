@@ -378,6 +378,18 @@ const css = `
   /* ---- お礼／通知画面 ---- */
   .notice { max-width: 520px; margin: 3rem auto; text-align: center; }
   .notice h1 { font-size: 1.4rem; margin-bottom: 1.25rem; }
+  .error-view { max-width: 520px; margin: 3rem auto; text-align: center; }
+  .error-view h1 { font-size: 1.3rem; margin-bottom: 0.75rem; }
+  .error-card {
+    background: color-mix(in srgb, #d93025 8%, var(--surface));
+    border: 1px solid color-mix(in srgb, #d93025 35%, var(--border));
+    border-radius: var(--radius);
+    padding: 1rem 1.15rem;
+    color: var(--text);
+    text-align: left;
+    margin-bottom: 1.5rem;
+  }
+  .error-detail { color: var(--text-2); font-size: 0.85rem; margin: 0.4rem 0 0; word-break: break-word; }
 
   /* ---- レスポンシブ ---- */
   @media (max-width: 600px) {

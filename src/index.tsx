@@ -242,7 +242,7 @@ app.get('/new-class',(c)=>{
   return c.html(
     <Layout title='新しい授業の登録'>
       <h1>新しく授業を登録する</h1>
-      <form class="new-class" method="post" action="/new-class">
+      <form class="new-class" method="post" action="/new-class" id="new-class">
         <div class="new-class">
           <label for="class">授業名</label>
             <input type="text" id="class-name" name="class_name" class="form-control" placeholder='授業名を入力してください'></input>
@@ -311,6 +311,18 @@ app.get('/new-class',(c)=>{
 
         <button type='submit' class="button">登録</button>
       </form>
+      {html`
+        <script>
+        const form=document.getElementById("new-class");
+        const name=document.getElementById("class-name");
+        form.addEventListener('submit',(event)=>{
+         if(name.value===""){
+         alert("授業名を入力してください");
+         event.preventDefault();
+         }
+        })
+        </script>
+      `}
     </Layout>
   )
 })//新しい授業の登録用のHTMLページを返す。formでapp.post('new-class')に入力を送り、登録作業を行う
@@ -318,6 +330,23 @@ app.get('/new-class',(c)=>{
 
 app.post('/new-class', async (c) => {
   const body = await c.req.parseBody();
+  const value=String(body.class_name).trim();
+  if(value===""||/[.,。、]/.test(value)){
+    console.error("授業名が不正です:", JSON.stringify(body.class_name));
+    return c.html(
+      <Layout title="入力内容を確認してください">
+        <div class="error-view">
+          <h1>授業名を確認してください</h1>
+          <div class="error-card">
+            <p>授業名が未入力か、使用できない文字が含まれています。</p>
+            <p class="error-detail">記号（. , 。 、）や空白のみの授業名は登録できません。</p>
+          </div>
+          <p><a href="/new-class" class="btn">登録画面に戻る</a></p>
+        </div>
+      </Layout>,
+      400
+    );
+  }
 
   const { data: subject, error: subjectError }=await supabase
     .from('subject')
@@ -334,10 +363,21 @@ app.post('/new-class', async (c) => {
 
   if (subjectError || !subject) {
     console.error('授業の登録に失敗', subjectError);
-    return c.text('授業の登録に失敗しました: ' + subjectError?.message, 500);
-  }
+    return c.html(
+      <Layout title="登録に失敗しました">
+        <div class="error-view">
+          <h1>授業の登録に失敗しました</h1>
+          <div class="error-card">
+            <p>入力内容を確認して、もう一度お試しください。</p>
+            {subjectError?.message && <p class="error-detail">{subjectError.message}</p>}
+          </div>
+          <p><a href="/new-class" class="btn">登録画面に戻る</a></p>
+        </div>
+      </Layout>,
+      500
+    );
+  }//サーバーに入力内容を送信
 
-  // ② 子テーブル subject_slot に、①の id を subject_id として保存
   const { error: slotError } = await supabase
     .from('subject_slot')
     .insert({
@@ -348,11 +388,23 @@ app.post('/new-class', async (c) => {
 
   if (slotError) {
     console.error('コマの登録に失敗', slotError);
-    return c.text('コマの登録に失敗しました: ' + slotError.message, 500);
+    return c.html(
+      <Layout title="登録に失敗しました">
+        <div class="error-view">
+          <h1>コマの登録に失敗しました</h1>
+          <div class="error-card">
+            <p>入力内容を確認して、もう一度お試しください。</p>
+            {slotError.message && <p class="error-detail">{slotError.message}</p>}
+          </div>
+          <p><a href="/new-class" class="btn">登録画面に戻る</a></p>
+        </div>
+      </Layout>,
+      500
+    );
   }
 
   return c.redirect('/appriciate');
-});//授業(subject)と時限(subject_slot)の2テーブルに分けて保存
+});
 
 
 app.get('/appriciate',(c)=>{
@@ -414,7 +466,19 @@ app.post('/new-review', async (c) => {
 
   if (insertError) {
     console.error('insert失敗:', insertError);
-    return c.text('保存に失敗しました: ' + insertError.message, 500);
+    return c.html(
+      <Layout title="保存に失敗しました">
+        <div class="error-view">
+          <h1>レビューの保存に失敗しました</h1>
+          <div class="error-card">
+            <p>入力内容を確認して、もう一度お試しください。</p>
+            {insertError.message && <p class="error-detail">{insertError.message}</p>}
+          </div>
+          <p><a href="/" class="btn">ホームに戻る</a></p>
+        </div>
+      </Layout>,
+      500
+    );
   }
   console.log('insert成功:', insertedReview);
   return c.redirect('/appriciate');
