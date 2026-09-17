@@ -3,7 +3,12 @@ import { Hono } from 'hono'
 import { Layout } from './components/Layout.js'
 import {supabase} from './db/index.js'
 import{html} from 'hono/html'
+import { csrf } from 'hono/csrf'
 const app = new Hono()
+
+// CSRF対策: 状態を変えるPOSTはOrigin/Refererを検証する
+app.use('*', csrf())
+
 app.get('/', async(c) => {
   const keyword = c.req.query('q') ?? ''  ;
   const faculty=c.req.query('faculty') ?? '';
@@ -24,8 +29,8 @@ app.get('/', async(c) => {
   }
   const{data:courses,error:readError}=await courseQuery;
     if(readError){
-    console.error("読み取り失敗!!");
-    return c.text("読み取り失敗！！"+readError.message);//エラー処理
+    console.error("読み取り失敗!!", readError);
+    return c.text("読み取りに失敗しました。時間をおいて再度お試しください。", 500);//エラー処理
   }
   return c.html(
     <Layout title="ホーム">
@@ -95,7 +100,12 @@ input.addEventListener('input', () => {
           }
           const res = await fetch('/api/suggest?q=' + encodeURIComponent(keyword));
           const suggestions = await res.json();
-          list.innerHTML = suggestions.map(suggestion => '<li>' + suggestion.class_name + '</li>').join('');
+          list.replaceChildren();
+          for (const suggestion of suggestions) {
+               const li = document.createElement('li');
+               li.textContent = suggestion.class_name;
+               list.appendChild(li);
+          }
      }, 250);
 
 });
@@ -107,13 +117,25 @@ list.addEventListener('click',(e)=>{
 getall.addEventListener('click',async (e)=>{
   const res=await fetch('/allclass');
   const courses=await res.json();
-  listBox.innerHTML=courses.map(course=>{
+  listBox.replaceChildren();
+  for (const course of courses) {
     const meta=[course.faculty,course.depart].filter(Boolean).join(' · ');
-    return '<a class="course-card" href="/subject/'+encodeURIComponent(course.class_name)+'">'
-      +'<div class="thumb"><div class="thumb-title">'+course.class_name+'</div>'
-      +'<div class="thumb-meta">'+meta+'</div></div>'
-      +'</a>';
-  }).join('')
+    const a=document.createElement('a');
+    a.className='course-card';
+    a.href='/subject/'+encodeURIComponent(course.class_name);
+    const thumb=document.createElement('div');
+    thumb.className='thumb';
+    const title=document.createElement('div');
+    title.className='thumb-title';
+    title.textContent=course.class_name;
+    const metaEl=document.createElement('div');
+    metaEl.className='thumb-meta';
+    metaEl.textContent=meta;
+    thumb.appendChild(title);
+    thumb.appendChild(metaEl);
+    a.appendChild(thumb);
+    listBox.appendChild(a);
+  }
 })
         </script>
 
@@ -130,8 +152,8 @@ app.get('/allclass',async(c)=>{
   .select('class_name,faculty,depart');
 
   if(classError){
-    console.error('サジェスト取得失敗:', classError);
-    return c.text('取得に失敗しました: ' + classError.message, 500);
+    console.error('授業一覧の取得失敗:', classError);
+    return c.text('取得に失敗しました。時間をおいて再度お試しください。', 500);
   };
 
   return c.json(allClass??[]);
@@ -150,7 +172,7 @@ app.get('/api/suggest',async(c)=>{//検索のときにサジェストが出る�
   .limit(10);
   if(suggestError){
     console.error('サジェスト取得失敗:', suggestError);
-    return c.text('取得に失敗しました: ' + suggestError.message, 500);
+    return c.text('取得に失敗しました。時間をおいて再度お試しください。', 500);
   };
   return c.json(suggestions??[]);
 })
@@ -158,11 +180,13 @@ app.get('/api/suggest',async(c)=>{//検索のときにサジェストが出る�
 
 app.get('/subject/:name',async(c)=>{
   const name = c.req.param('name') //URLの:nameの部分を取り出してname変数に入れている
-  const { data: subject, error } = await supabase
+  const { data: subjects, error } = await supabase
     .from('subject')
     .select('*')
     .eq('class_name', name)
-    .single();
+    .order('created_at', { ascending: true })
+    .limit(1);
+  const subject = subjects?.[0];
   if (error || !subject) return c.text('授業が見つかりません', 404)
 
   // 開講コマ（複数）とレビュー（新しい順）を並列取得
@@ -222,7 +246,7 @@ app.get('/subject/:name',async(c)=>{
             {reviewList.map((review) => (
               <div class="review-item">
                 <div class="review-score">
-                  {'★'.repeat(Number(review.score) || 0)}
+                  {'★'.repeat(Math.max(0,Math.min(5,Number(review.score)||0)))}
                   <span class="review-score-num">{review.score}</span>
                 </div>
                 <p class="review-comment">{review.comment}</p>
@@ -247,10 +271,12 @@ app.get('/new-class',(c)=>{
           <label for="class">授業名</label>
             <input type="text" id="class-name" name="class_name" class="form-control" placeholder='授業名を入力してください'></input>
         </div>
+        <p id="name-error" class="field-error"></p>
         <div>
           <label for="about">授業概要</label>
           <input type='text' id="class_about" name='class_about' placeholder='概要を入力してください'></input>
         </div>
+        <p id="about-error" class="field-error"></p>
         <div>
           <label for="semester">開講時期</label>
             <select id='semester' name='semester'>
@@ -314,11 +340,22 @@ app.get('/new-class',(c)=>{
       {html`
         <script>
         const form=document.getElementById("new-class");
-        const name=document.getElementById("class-name");
+        const nameInput=document.getElementById("class-name");
+        const aboutInput=document.getElementById("class_about");
+        const nameError=document.getElementById("name-error");
+        const aboutError=document.getElementById("about-error");
         form.addEventListener('submit',(event)=>{
-         if(name.value===""){
-         alert("授業名を入力してください");
-         event.preventDefault();
+         nameError.textContent="";
+         aboutError.textContent="";
+         const nameValue=nameInput.value.trim();
+         const aboutValue=aboutInput.value.trim();
+         if(nameValue==="" || /[.,。、]/.test(nameValue)){
+          event.preventDefault();
+          nameError.textContent="授業名は必須です（記号・空白のみは不可）";
+         }
+         if(aboutValue==="" || /[.,。、]/.test(aboutValue)){
+          event.preventDefault();
+          aboutError.textContent="概要は必須です（記号・空白のみは不可）";
          }
         })
         </script>
@@ -331,7 +368,8 @@ app.get('/new-class',(c)=>{
 app.post('/new-class', async (c) => {
   const body = await c.req.parseBody();
   const value=String(body.class_name).trim();
-  if(value===""||/[.,。、]/.test(value)){
+  const about=String(body.class_about).trim();
+  if(value===""||/[.,。、]/.test(value)||value.length>200){
     console.error("授業名が不正です:", JSON.stringify(body.class_name));
     return c.html(
       <Layout title="入力内容を確認してください">
@@ -339,7 +377,23 @@ app.post('/new-class', async (c) => {
           <h1>授業名を確認してください</h1>
           <div class="error-card">
             <p>授業名が未入力か、使用できない文字が含まれています。</p>
-            <p class="error-detail">記号（. , 。 、）や空白のみの授業名は登録できません。</p>
+            <p class="error-detail">記号（. , 。 、）や空白のみ、または200文字を超える授業名は登録できません。</p>
+          </div>
+          <p><a href="/new-class" class="btn">登録画面に戻る</a></p>
+        </div>
+      </Layout>,
+      400
+    );
+  }
+  if(about.length>2000){
+    console.error("概要が長すぎます");
+    return c.html(
+      <Layout title="入力内容を確認してください">
+        <div class="error-view">
+          <h1>概要を確認してください</h1>
+          <div class="error-card">
+            <p>概要が長すぎます。</p>
+            <p class="error-detail">概要は2000文字以内で入力してください。</p>
           </div>
           <p><a href="/new-class" class="btn">登録画面に戻る</a></p>
         </div>
@@ -369,7 +423,6 @@ app.post('/new-class', async (c) => {
           <h1>授業の登録に失敗しました</h1>
           <div class="error-card">
             <p>入力内容を確認して、もう一度お試しください。</p>
-            {subjectError?.message && <p class="error-detail">{subjectError.message}</p>}
           </div>
           <p><a href="/new-class" class="btn">登録画面に戻る</a></p>
         </div>
@@ -381,9 +434,9 @@ app.post('/new-class', async (c) => {
   const { error: slotError } = await supabase
     .from('subject_slot')
     .insert({
-      subject_id: subject.id,          
+      subject_id: subject.id,
       day:        body.days as string,
-      period:     Number(body.period), 
+      period:     Number(body.period),
     });
 
   if (slotError) {
@@ -394,7 +447,6 @@ app.post('/new-class', async (c) => {
           <h1>コマの登録に失敗しました</h1>
           <div class="error-card">
             <p>入力内容を確認して、もう一度お試しください。</p>
-            {slotError.message && <p class="error-detail">{slotError.message}</p>}
           </div>
           <p><a href="/new-class" class="btn">登録画面に戻る</a></p>
         </div>
@@ -425,11 +477,12 @@ app.get('/new-review',(c)=>{
   return c.html(
     <Layout title="レビュー登録">
       <h1>レビュー登録</h1>
-      <form class="form-card" method="post" action="/new-review">
+      <form class="form-card" id="form-card" method="post" action="/new-review">
         <div class="form-group">
           <label for="review">レビュー内容</label>
           <textarea id="review" name="review" class="form-control" placeholder="授業の感想を入力してください"></textarea>
         </div>
+        <p id="review-error" class="field-error"></p>
         <div class="form-group">
           <label for="score">評価点数</label>
           <select id="score" name="score" class="form-control">
@@ -452,16 +505,47 @@ app.get('/new-review',(c)=>{
         <input type="hidden" name="subject_id" value={classid} />
         <button type="submit" class="btn">登録する</button>
       </form>
+      {html`
+      <script>
+      const reviewError=document.getElementById("review-error");
+      const reviewInputEl=document.getElementById("review");
+      const form=document.getElementById("form-card");
+      form.addEventListener('submit',(event)=>{
+      reviewError.textContent="";
+      const reviewValue=reviewInputEl.value.trim();
+      if(reviewValue===""){
+      event.preventDefault();
+      reviewError.textContent="内容を入力してください"
+      }
+      })
+      </script>
+      `}
     </Layout>
   )//コメントを入力するページ
-});
+});//レビューの入力ページ
 
 
 app.post('/new-review', async (c) => {
   const body = await c.req.parseBody();
+  const  review=String(body.review).trim();
+  if(review===""||review.length>2000){
+  return c.html(
+      <Layout title="入力内容を確認してください">
+        <div class="error-view">
+          <h1>入力内容を確認してください</h1>
+          <div class="error-card">
+            <p>レビューが未入力か、長すぎます（2000文字以内）。</p>
+          </div>
+          <p><a href="/" class="btn">登録画面に戻る</a></p>
+        </div>
+      </Layout>,
+      400
+    );
+}
+  const score=Math.max(0,Math.min(5,Number(body.score)));
   const { data: insertedReview, error: insertError } = await supabase
     .from('review')
-    .insert({ comment: body.review as string, score: body.score,attendance:Number(body.attendance), subject_id:Number(body.subject_id)})
+    .insert({ comment: body.review as string, score: score,attendance:Number(body.attendance), subject_id:Number(body.subject_id)})
     .select();              // 挿入した行を返してもらう
 
   if (insertError) {
@@ -472,7 +556,6 @@ app.post('/new-review', async (c) => {
           <h1>レビューの保存に失敗しました</h1>
           <div class="error-card">
             <p>入力内容を確認して、もう一度お試しください。</p>
-            {insertError.message && <p class="error-detail">{insertError.message}</p>}
           </div>
           <p><a href="/" class="btn">ホームに戻る</a></p>
         </div>
