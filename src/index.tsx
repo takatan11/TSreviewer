@@ -4,6 +4,7 @@ import { Layout } from './components/Layout.js'
 import {supabase} from './db/index.js'
 import{html} from 'hono/html'
 import { csrf } from 'hono/csrf'
+import{createClientForRequest} from './db/server.js'
 const app = new Hono()
 
 // CSRF対策: 状態を変えるPOSTはOrigin/Refererを検証する
@@ -575,16 +576,47 @@ app.get('/login',(c)=>{
         <div>
           <input type="email" id="email" name="email" class="form-control" required placeholder="メールアドレスを入力してください"></input>
         </div>
+        <p id="address-error" class="field-error"></p>
         <button type="submit" class="btn">ログイン</button>
       </form>
+      {html`
+        <script>
+         const form=document.querySelector('form');
+         const emailInput=document.getElementById("email");
+         const emailError=document.getElementById("address-error");
+         const Allowed_domain='@s.thers.ac.jp';
+         form.addEventListener('submit',(event)=>{
+         const check=String(emailInput.value).trim();
+         if(!check.endsWith(Allowed_domain)){
+         event.preventDefault();
+         emailError.textContent="正規のメールアドレスを入力してください"
+         }
+         })
+        </script>
+      `}
     </Layout>
   )
 })
 
 app.post("/login/auth",async (c)=>{
-  const address=c.req.parseBody();
-  
-})
+  const address=await c.req.parseBody();
+  const check=String(address.email).trim();
+  const Allowed_domain='@s.thers.ac.jp';
+  if(check.endsWith(Allowed_domain)){
+
+  }
+  else{
+
+  }
+
+   
+
+  return c.html(
+    <Layout title="コード送信">
+      <form>入力ありがとうございます。送られてきたコードを入力してください。</form>
+    </Layout>
+  )
+})//実装中。メルアドの検査して、cookie付与の処理を書くこと
 
 serve({
   fetch: app.fetch,
