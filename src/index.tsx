@@ -568,6 +568,24 @@ app.post('/new-review', async (c) => {
 }); //新しい投稿の登録の処理。入力された内容をデータベースに登録   入力してもらった
 
 
+app.get('/login',(c)=>{
+  return c.html(
+    <Layout title="ログイン">
+      <form method="post" action="/login/auth">
+        <div>
+          <input type="email" id="email" name="email" class="form-control" required placeholder="メールアドレスを入力してください"></input>
+        </div>
+        <button type="submit" class="btn">ログイン</button>
+      </form>
+    </Layout>
+  )
+})
+
+app.post("/login/auth",async (c)=>{
+  const address=c.req.parseBody();
+  
+})
+
 serve({
   fetch: app.fetch,
   port: 3000
