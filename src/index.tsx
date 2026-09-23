@@ -5,6 +5,7 @@ import {supabase} from './db/index.js'
 import{html} from 'hono/html'
 import { csrf } from 'hono/csrf'
 import{createClientForRequest} from './db/server.js'
+import { auth } from 'hono/utils/basic-auth'
 const app = new Hono()
 
 // CSRF対策: 状態を変えるPOSTはOrigin/Refererを検証する
@@ -573,8 +574,10 @@ app.get('/login',(c)=>{
   return c.html(
     <Layout title="ログイン">
       <form method="post" action="/login/auth">
-        <div>
-          <input type="email" id="email" name="email" class="form-control" required placeholder="メールアドレスを入力してください"></input>
+        <div class="form-group">
+          <label for="email">大学メールアドレス</label>
+          <input type="email" id="email" name="email" class="form-control" required placeholder="例：s2312345@s.thers.ac.jp"></input>
+          <p class="form-hint">大学発行のメール（@s.thers.ac.jp）のみ登録できます</p>
         </div>
         <p id="address-error" class="field-error"></p>
         <button type="submit" class="btn">ログイン</button>
@@ -603,20 +606,47 @@ app.post("/login/auth",async (c)=>{
   const check=String(address.email).trim();
   const Allowed_domain='@s.thers.ac.jp';
   if(check.endsWith(Allowed_domain)){
-
+    const addressAuth=createClientForRequest(c);
+    const { error: otpError } = await addressAuth.auth.signInWithOtp({email:check,options:{emailRedirectTo:'http://localhost:3000/auth/callback'}})
+    if(otpError){
+      console.error('マジックリンク送信失敗:', otpError);
+      return c.html(
+        <Layout title="送信に失敗しました">
+          <div class="error-view">
+            <h1>送信に失敗しました</h1>
+            <div class="error-card">
+              <p>ログイン用リンクの送信に失敗しました。時間をおいて再度お試しください。</p>
+            </div>
+            <p><a href="/login" class="btn">ログイン画面に戻る</a></p>
+          </div>
+        </Layout>,
+        500
+      )
+    }
+    return c.html(
+    <Layout title="メールを確認してください">
+      <div class="notice">
+        <h1>メールを確認してください</h1>
+        <p>入力いただいたメールアドレスにログイン用リンクを送りました。メール内のリンクを開いてください。</p>
+      </div>
+    </Layout>
+   )
   }
   else{
-
+    return c.html(
+      <Layout title="メールアドレスをご確認ください">
+        <div class="error-view">
+          <h1>メールアドレスをご確認ください</h1>
+          <div class="error-card">
+            <p>入力されたメールアドレスが正しくありません。大学発行のメール（@s.thers.ac.jp）を入力してください。</p>
+          </div>
+          <p><a href="/login" class="btn">ログイン画面に戻る</a></p>
+        </div>
+      </Layout>,
+      400
+    )
   }
-
-   
-
-  return c.html(
-    <Layout title="コード送信">
-      <form>入力ありがとうございます。送られてきたコードを入力してください。</form>
-    </Layout>
-  )
-})//実装中。メルアドの検査して、cookie付与の処理を書くこと
+});
 
 serve({
   fetch: app.fetch,

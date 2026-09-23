@@ -390,6 +390,7 @@ const css = `
     margin-bottom: 1.5rem;
   }
   .error-detail { color: var(--text-2); font-size: 0.85rem; margin: 0.4rem 0 0; word-break: break-word; }
+  .form-hint { color: var(--text-2); font-size: 0.8rem; margin: 0.25rem 0 0; }
   .field-error { color: #d93025; font-size: 0.8rem; margin: 0.25rem 0 0; }
   :root:not([data-theme="light"]) .field-error { color: #ff6b5e; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .field-error { color: #ff6b5e; } }
