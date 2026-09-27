@@ -5,7 +5,6 @@ import {supabase} from './db/index.js'
 import{html} from 'hono/html'
 import { csrf } from 'hono/csrf'
 import{createClientForRequest} from './db/server.js'
-import { auth } from 'hono/utils/basic-auth'
 const app = new Hono()
 
 // CSRF対策: 状態を変えるPOSTはOrigin/Refererを検証する
@@ -607,28 +606,30 @@ app.post("/login/auth",async (c)=>{
   const Allowed_domain='@s.thers.ac.jp';
   if(check.endsWith(Allowed_domain)){
     const addressAuth=createClientForRequest(c);
-    const { error: otpError } = await addressAuth.auth.signInWithOtp({email:check,options:{emailRedirectTo:'http://localhost:3000/auth/callback'}})
+    const { error: otpError } = await addressAuth.auth.signInWithOtp({email:check})
     if(otpError){
-      console.error('マジックリンク送信失敗:', otpError);
+      console.error('コード送信失敗:', otpError);
       return c.html(
         <Layout title="送信に失敗しました">
           <div class="error-view">
             <h1>送信に失敗しました</h1>
             <div class="error-card">
-              <p>ログイン用リンクの送信に失敗しました。時間をおいて再度お試しください。</p>
+              <p>ログイン用コードの送信に失敗しました。時間をおいて再度お試しください。</p>
             </div>
             <p><a href="/login" class="btn">ログイン画面に戻る</a></p>
           </div>
         </Layout>,
         500
       )
-    }
+    }//エラーの時はここの中身が実施される。エラーでなければ次のreturnが実施される
     return c.html(
     <Layout title="メールを確認してください">
-      <div class="notice">
-        <h1>メールを確認してください</h1>
-        <p>入力いただいたメールアドレスにログイン用リンクを送りました。メール内のリンクを開いてください。</p>
-      </div>
+      <form method="post" action="/login/verify">
+       <p>メールに届いた6桁コードを入力してください</p>
+       <input type="hidden" name="email" value={check} />
+       <input type="text" name="token" inputmode="numeric" required />
+       <button type="submit" class="btn">確認</button>
+      </form>
     </Layout>
    )
   }
@@ -647,6 +648,30 @@ app.post("/login/auth",async (c)=>{
     )
   }
 });
+
+app.post("/login/verify",async(c)=>{
+  const body=await c.req.parseBody();
+  const email=String(body.email);
+  const token=String(body.token);
+  const client=createClientForRequest(c);
+  const {error}=await client.auth.verifyOtp({ email, token, type: 'email'})
+  if (error) {
+    console.error('コード検証失敗:', error);
+    return c.html(
+      <Layout title="コードをご確認ください">
+        <div class="error-view">
+          <h1>コードをご確認ください</h1>
+          <div class="error-card">
+            <p>コードが正しくないか、有効期限が切れています。</p>
+          </div>
+          <p><a href="/login" class="btn">ログイン画面に戻る</a></p>
+        </div>
+      </Layout>,
+      400
+    );
+  }
+  return c.redirect('/');
+})
 
 serve({
   fetch: app.fetch,
