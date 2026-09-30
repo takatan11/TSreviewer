@@ -3,7 +3,7 @@ import { raw } from 'hono/html'
 
 // 全ページ共通の外枠。各画面はこの中に children として差し込まれる。
 // サイト共通の装飾（CSS）もここで一度だけ読み込む。
-export const Layout = (props: { title: string; children: Child }) => (
+export const Layout = (props: { title: string; children: Child; user?: { email?: string | null } | null }) => (
   <>
     {raw('<!DOCTYPE html>')}
     <html lang="ja">
@@ -28,6 +28,13 @@ export const Layout = (props: { title: string; children: Child }) => (
             </a>
             <nav class="site-nav">
               <a href="/new-class">授業を登録</a>
+              {props.user ? (
+                <form method="post" action="/logout" class="logout-form">
+                  <button type="submit">ログアウト</button>
+                </form>
+              ) : (
+                <a href="/login">ログイン</a>
+              )}
             </nav>
           </div>
         </header>
@@ -137,6 +144,19 @@ const css = `
     border-radius: 999px;
   }
   .site-nav a:hover { background: var(--surface-2); }
+  .logout-form { margin: 0; display: flex; }
+  .logout-form button {
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-2);
+    padding: 0.45rem 0.8rem;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    cursor: pointer;
+  }
+  .logout-form button:hover { background: var(--surface-2); color: var(--text); }
 
   /* ---- レイアウト ---- */
   .container { max-width: var(--maxw); margin: 1.75rem auto 3rem; padding: 0 1rem; }

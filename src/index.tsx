@@ -598,7 +598,7 @@ app.get('/login',(c)=>{
       `}
     </Layout>
   )
-})
+})//ログイン画面
 
 app.post("/login/auth",async (c)=>{
   const address=await c.req.parseBody();
@@ -647,7 +647,7 @@ app.post("/login/auth",async (c)=>{
       400
     )
   }
-});
+});//ログイン時にデータを送信
 
 app.post("/login/verify",async(c)=>{
   const body=await c.req.parseBody();
@@ -671,7 +671,15 @@ app.post("/login/verify",async(c)=>{
     );
   }
   return c.redirect('/');
-})
+})//cookieの検証
+
+app.post("/logout",async(c)=>{
+  const client=createClientForRequest(c);
+  await client.auth.signOut();
+  return c.redirect("/");
+})//ログアウト機能
+
+
 
 serve({
   fetch: app.fetch,
