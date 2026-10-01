@@ -10,7 +10,14 @@ const app = new Hono()
 // CSRF対策: 状態を変えるPOSTはOrigin/Refererを検証する
 app.use('*', csrf())
 
+// 現在ログインしているユーザー（未ログインなら null）を取得するヘルパー
+async function getCurrentUser(c: any) {
+  const { data } = await createClientForRequest(c).auth.getUser()
+  return data.user
+}
+
 app.get('/', async(c) => {
+  const user = await getCurrentUser(c)
   const keyword = c.req.query('q') ?? ''  ;
   const faculty=c.req.query('faculty') ?? '';
   const department=c.req.query('department') ?? '';
@@ -34,7 +41,7 @@ app.get('/', async(c) => {
     return c.text("読み取りに失敗しました。時間をおいて再度お試しください。", 500);//エラー処理
   }
   return c.html(
-    <Layout title="ホーム">
+    <Layout title="ホーム" user={user}>
       <section class="home-hero">
         <h1 class="home-title">授業を探す</h1>
         <form class="search-card" method="get" action="/">
@@ -180,6 +187,7 @@ app.get('/api/suggest',async(c)=>{//検索のときにサジェストが出る�
 
 
 app.get('/subject/:name',async(c)=>{
+  const user = await getCurrentUser(c)
   const name = c.req.param('name') //URLの:nameの部分を取り出してname変数に入れている
   const { data: subjects, error } = await supabase
     .from('subject')
@@ -206,7 +214,7 @@ app.get('/subject/:name',async(c)=>{
   const reviewList = reviews ?? [];
 
   return c.html(
-    <Layout title={subject.class_name}>
+    <Layout title={subject.class_name} user={user}>
       <p class="back-link"><a href="/">← ホームに戻る</a></p>
 
       <div class="subject-detail">
@@ -263,9 +271,10 @@ app.get('/subject/:name',async(c)=>{
 })//検索したカードをクリックしたときの授業詳細ページ。概要・開講コマ・レビュー一覧を表示
 
 
-app.get('/new-class',(c)=>{
+app.get('/new-class',async(c)=>{
+  const user = await getCurrentUser(c)
   return c.html(
-    <Layout title='新しい授業の登録'>
+    <Layout title='新しい授業の登録' user={user}>
       <h1>新しく授業を登録する</h1>
       <form class="new-class" method="post" action="/new-class" id="new-class">
         <div class="new-class">
@@ -460,9 +469,10 @@ app.post('/new-class', async (c) => {
 });
 
 
-app.get('/appriciate',(c)=>{
+app.get('/appriciate',async(c)=>{
+  const user = await getCurrentUser(c)
   return c.html(
-    <Layout title="ありがとうございました">
+    <Layout title="ありがとうございました" user={user}>
       <div class="notice">
         <h1>協力ありがとうございました！</h1>
         <p><a href='/' class="btn">ホームに戻る</a></p>
@@ -473,10 +483,11 @@ app.get('/appriciate',(c)=>{
 
 
 
-app.get('/new-review',(c)=>{
+app.get('/new-review',async(c)=>{
+  const user = await getCurrentUser(c)
   const classid=c.req.query('subject_id');
   return c.html(
-    <Layout title="レビュー登録">
+    <Layout title="レビュー登録" user={user}>
       <h1>レビュー登録</h1>
       <form class="form-card" id="form-card" method="post" action="/new-review">
         <div class="form-group">
@@ -569,9 +580,10 @@ app.post('/new-review', async (c) => {
 }); //新しい投稿の登録の処理。入力された内容をデータベースに登録   入力してもらった
 
 
-app.get('/login',(c)=>{
+app.get('/login',async(c)=>{
+  const user = await getCurrentUser(c)
   return c.html(
-    <Layout title="ログイン">
+    <Layout title="ログイン" user={user}>
       <form method="post" action="/login/auth">
         <div class="form-group">
           <label for="email">大学メールアドレス</label>
