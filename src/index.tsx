@@ -10,7 +10,6 @@ const app = new Hono()
 // CSRF対策: 状態を変えるPOSTはOrigin/Refererを検証する
 app.use('*', csrf())
 
-// 現在ログインしているユーザー（未ログインなら null）を取得するヘルパー
 async function getCurrentUser(c: any) {
   const { data } = await createClientForRequest(c).auth.getUser()
   return data.user
@@ -273,6 +272,7 @@ app.get('/subject/:name',async(c)=>{
 
 app.get('/new-class',async(c)=>{
   const user = await getCurrentUser(c)
+  if (!user) return c.redirect('/login')
   return c.html(
     <Layout title='新しい授業の登録' user={user}>
       <h1>新しく授業を登録する</h1>
@@ -376,6 +376,8 @@ app.get('/new-class',async(c)=>{
 
 
 app.post('/new-class', async (c) => {
+  const user = await getCurrentUser(c)
+  if (!user) return c.redirect('/login')
   const body = await c.req.parseBody();
   const value=String(body.class_name).trim();
   const about=String(body.class_about).trim();
@@ -485,6 +487,7 @@ app.get('/appriciate',async(c)=>{
 
 app.get('/new-review',async(c)=>{
   const user = await getCurrentUser(c)
+  if (!user) return c.redirect('/login')
   const classid=c.req.query('subject_id');
   return c.html(
     <Layout title="レビュー登録" user={user}>
@@ -538,6 +541,8 @@ app.get('/new-review',async(c)=>{
 
 
 app.post('/new-review', async (c) => {
+  const user = await getCurrentUser(c)
+  if (!user) return c.redirect('/login')
   const body = await c.req.parseBody();
   const  review=String(body.review).trim();
   if(review===""||review.length>2000){
