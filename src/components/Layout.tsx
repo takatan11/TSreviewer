@@ -352,6 +352,11 @@ const css = `
   .subject-detail { max-width: 800px; margin: 0 auto; }
   .subject-detail h1 { font-size: 1.5rem; letter-spacing: -0.01em; margin-bottom: 0.7rem; }
   .detail-meta { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .rating-summary { display: flex; align-items: baseline; gap: 0.55rem; margin-top: 0.85rem; }
+  .rating-score { font-size: 2rem; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+  .rating-stars { color: var(--star); font-size: 1.05rem; letter-spacing: 1px; }
+  .rating-count { color: var(--text-2); font-size: 0.85rem; }
+  .rating-empty { color: var(--text-2); font-size: 0.9rem; margin-top: 0.85rem; }
   .badge {
     background: var(--chip);
     color: var(--text);
@@ -384,6 +389,26 @@ const css = `
     margin-bottom: 0.75rem;
   }
   .detail-section-head h2 { margin-bottom: 0; }
+  .head-controls { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .head-controls form { margin: 0; }
+  .sort-select {
+    appearance: none;
+    height: 34px;
+    padding: 0 2rem 0 0.9rem;
+    font-size: 0.82rem;
+    font-family: inherit;
+    color: var(--text);
+    background-color: var(--surface);
+    border: 1px solid var(--border-2);
+    border-radius: 999px;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23888' d='M6 8 0 0h12z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    transition: border-color 0.15s;
+  }
+  .sort-select:hover { border-color: var(--text-2); }
+  .sort-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
   .btn-sm { height: 34px; padding: 0 1rem; font-size: 0.82rem; }
   .detail-text { margin: 0; }
   .detail-text a { color: var(--accent); font-weight: 500; margin-left: 0.4rem; }
@@ -398,6 +423,7 @@ const css = `
   /* ---- お礼／通知画面 ---- */
   .notice { max-width: 520px; margin: 3rem auto; text-align: center; }
   .notice h1 { font-size: 1.4rem; margin-bottom: 1.25rem; }
+  .notice-sub { font-size: 0.95rem; font-weight: 500; color: var(--text-2); margin-bottom: 1.25rem; }
   .error-view { max-width: 520px; margin: 3rem auto; text-align: center; }
   .error-view h1 { font-size: 1.3rem; margin-bottom: 0.75rem; }
   .error-card {

@@ -188,6 +188,15 @@ app.get('/api/suggest',async(c)=>{//検索のときにサジェストが出る�
 app.get('/subject/:name',async(c)=>{
   const user = await getCurrentUser(c)
   const name = c.req.param('name') //URLの:nameの部分を取り出してname変数に入れている
+  const sort = c.req.query('sort') ?? 'newest';
+  const SORT_OPTIONS: Record<string, { column: string; ascending: boolean }> = {
+  newest:     { column: "created_at", ascending: false }, // 新着順
+  oldest:     { column: "created_at", ascending: true },  // 古い順
+  score_high: { column: "score",      ascending: false }, // 評価が高い順
+  score_low:  { column: "score",      ascending: true },  // 評価が低い順
+}
+  // sort が4キー以外（URL改変など）なら newest に倒す
+  const sortOption = SORT_OPTIONS[sort] ?? SORT_OPTIONS.newest;
   const { data: subjects, error } = await supabase
     .from('subject')
     .select('*')
@@ -206,11 +215,15 @@ app.get('/subject/:name',async(c)=>{
     supabase.from('review')
             .select('comment, score, created_at')
             .eq('subject_id', subject.id)
-            .order('created_at', { ascending: false }),
+            .order(sortOption.column, { ascending: sortOption.ascending }),
 ]);
 
   const slotList = slots ?? [];
   const reviewList = reviews ?? [];
+  // レビューが0件なら平均なし(null)、1件以上なら score の平均
+  const avgScore = reviewList.length === 0
+    ? null
+    : reviewList.reduce((acc, r) => acc + (Number(r.score) || 0), 0) / reviewList.length;
 
   return c.html(
     <Layout title={subject.class_name} user={user}>
@@ -224,6 +237,15 @@ app.get('/subject/:name',async(c)=>{
           {subject.semester && <span class="badge">{subject.semester}</span>}
           {subject.point    && <span class="badge">{subject.point}単位</span>}
         </div>
+        {avgScore === null ? (
+          <p class="rating-empty">まだ評価がありません</p>
+        ) : (
+          <div class="rating-summary">
+            <span class="rating-score">{avgScore.toFixed(1)}</span>
+            <span class="rating-stars">{'★'.repeat(Math.round(avgScore))}{'☆'.repeat(5 - Math.round(avgScore))}</span>
+            <span class="rating-count">{reviewList.length}件のレビュー</span>
+          </div>
+        )}
       </div>
 
       <section class="detail-section">
@@ -243,11 +265,20 @@ app.get('/subject/:name',async(c)=>{
           <p class="detail-text">開講コマは登録されていません。</p>
         )}
       </section>
-
       <section class="detail-section">
         <div class="detail-section-head">
           <h2>レビュー（{reviewList.length}件）</h2>
-          <a href={`/new-review?subject_id=${subject.id}`} class="btn btn-sm">レビューを書く</a>
+          <div class="head-controls">
+            <form method='get' action={`/subject/${encodeURIComponent(subject.class_name)}`}>
+              <select name="sort" class="sort-select" onchange="this.form.submit()">
+                <option value="newest" selected={sort === 'newest'}>新しい順</option>
+                <option value="oldest" selected={sort === 'oldest'}>古い順</option>
+                <option value="score_high" selected={sort === 'score_high'}>スコアが高い順</option>
+                <option value="score_low" selected={sort === 'score_low'}>スコアが低い順</option>
+              </select>
+            </form>
+            <a href={`/new-review?subject_id=${subject.id}`} class="btn btn-sm">レビューを書く</a>
+          </div>
         </div>
         {reviewList.length > 0 ? (
           <div class="review-list">
@@ -414,7 +445,7 @@ app.post('/new-class', async (c) => {
     );
   }
 
-  const { data: subject, error: subjectError }=await supabase
+  const { data: subject, error: subjectError }=await createClientForRequest(c)
     .from('subject')
     .insert({
       class_name: body.class_name as string,
@@ -443,7 +474,7 @@ app.post('/new-class', async (c) => {
     );
   }//サーバーに入力内容を送信
 
-  const { error: slotError } = await supabase
+  const { error: slotError } = await createClientForRequest(c)
     .from('subject_slot')
     .insert({
       subject_id: subject.id,
@@ -473,10 +504,21 @@ app.post('/new-class', async (c) => {
 
 app.get('/appriciate',async(c)=>{
   const user = await getCurrentUser(c)
+  const random=Math.floor(Math.random()*7)//整数０から６までランダムに出す
+  const message=[
+    "後輩たちの手助けになりましたよ！",
+    "見返りを求めずに貢献してくれるなんて、素敵な先輩ですね！",
+    "あなたのおかげで、このサイトがより信用されるようになりましたよ。",
+    "本当にいい人ですね。たくさんの後輩がきっと救われるでしょう！",
+    "助かります！絶対今日いいことがありますよ！",
+    "もっと大学が攻略しやすくなりましたよ。ありがとう！",
+    "サイトの情報源が本当に不足しているのでとても助かりました！ありがとう！"
+  ]
   return c.html(
     <Layout title="ありがとうございました" user={user}>
       <div class="notice">
         <h1>協力ありがとうございました！</h1>
+        <h2 class="notice-sub">{message[random]}</h2>
         <p><a href='/' class="btn">ホームに戻る</a></p>
       </div>
     </Layout>
@@ -560,9 +602,9 @@ app.post('/new-review', async (c) => {
     );
 }
   const score=Math.max(0,Math.min(5,Number(body.score)));
-  const { data: insertedReview, error: insertError } = await supabase
+  const { data: insertedReview, error: insertError } = await createClientForRequest(c)
     .from('review')
-    .insert({ comment: body.review as string, score: score,attendance:Number(body.attendance), subject_id:Number(body.subject_id)})
+    .insert({ comment: body.review as string, score: score,attendance:Number(body.attendance), subject_id:Number(body.subject_id),user_id:user.id})
     .select();              // 挿入した行を返してもらう
 
   if (insertError) {
