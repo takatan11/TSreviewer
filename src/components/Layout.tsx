@@ -345,6 +345,48 @@ const css = `
   }
   form.new-class .button, .form-card .btn { margin-top: 0.5rem; }
 
+  /* ---- タグ選択（チェックボックス式トグルボタン） ---- */
+  .tag-field-label {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .tag-group { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .tag-group .tag-chip { position: relative; display: inline-flex; margin: 0; cursor: pointer; }
+  /* チェックボックス本体は視覚的に隠す（form.new-class input より詳細度を高くして上書き） */
+  .tag-chip input[type="checkbox"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .tag-chip span {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.42rem 0.9rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text);
+    background: var(--chip);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .tag-chip span:hover { background: var(--surface-2); }
+  .tag-chip input:checked + span {
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border-2));
+  }
+  .tag-chip input:focus-visible + span {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+
   /* ---- 授業詳細ページ ---- */
   .back-link { max-width: 800px; margin: 0 auto 1rem; }
   .back-link a { color: var(--text-2); font-size: 0.875rem; font-weight: 500; }

@@ -59,6 +59,7 @@ app.get('/', async(c) => {
               <option value="応用生物学部">応用生物学部</option>
               <option value="農学部">農学部</option>
               <option value="医学部">医学部</option>
+              <option value="全学共通">全学共通</option>
             </select>
             <select id='department-select' class="search-control" name="department">
               <option value="" disabled selected hidden>学科を選択</option>
@@ -66,6 +67,7 @@ app.get('/', async(c) => {
               <option value="応用生物学科">応用生物学科</option>
               <option value="機械工学科">機械工学科</option>
               <option value="医学科">医学科</option>
+              <option value="全学共通">全学共通</option>
             </select>
             <button type='button' id='show-all'>すべての授業</button>
           </div>
@@ -345,6 +347,7 @@ app.get('/new-class',async(c)=>{
                 <option>応用生物学部</option>
                 <option>農学部</option>
                 <option>医学部</option>
+                <option>全学共通</option>
             </select>
         </div>
         <div>
@@ -354,6 +357,7 @@ app.get('/new-class',async(c)=>{
               <option>応用生物学科</option>
               <option>機械工学科</option>
               <option>医学科</option>
+              <option>全学共通</option>
            </select>
         </div>
         <div>
@@ -376,6 +380,26 @@ app.get('/new-class',async(c)=>{
             </select>
         </div>
 
+        <div class="tag-field">
+          <span class="tag-field-label">タグ（当てはまるものを選んでください・複数可）</span>
+          <div class="tag-group">
+            {/* value は POST 側の ALLOWED_TAGS と必ず一致させる。語を足し引きするときは両方直す */}
+            <label class="tag-chip"><input type="checkbox" name="tags" value="面白い" /><span>面白い</span></label>
+            <label class="tag-chip"><input type="checkbox" name="tags" value="つまらない" /><span>つまらない</span></label>
+            <label class="tag-chip"><input type="checkbox" name="tags" value="楽単" /><span>楽単</span></label>
+            <label class="tag-chip"><input type="checkbox" name="tags" value="普通" /><span>普通</span></label>
+            <label class="tag-chip"><input type="checkbox" name="tags" value="難しい" /><span>難しい</span></label>
+            <label class="tag-chip"><input type="checkbox" name="tags" value="先生優しい" /><span>先生優しい</span></label>
+            <label class="tag-chip"><input type="checkbox" name="tags" value="先生厳しい" /><span>先生厳しい</span></label>
+            <label class="tag-chip"><input type="checkbox" name="tags" value="出席なし" /><span>出席なし</span></label>
+            <label class="tag-chip"><input type="checkbox" name="tags" value="出席あり" /><span>出席あり</span></label>
+            <label class="tag-chip"><input type="checkbox" name="tags" value="課題多い" /><span>課題多い</span></label>
+            <label class="tag-chip"><input type="checkbox" name="tags" value="課題なし" /><span>課題なし</span></label>
+            <label class="tag-chip"><input type="checkbox" name="tags" value="テストなし" /><span>テストなし</span></label>
+            <label class="tag-chip"><input type="checkbox" name="tags" value="テストのみ" /><span>テストのみ</span></label>
+            <label class="tag-chip"><input type="checkbox" name="tags" value="レポートのみ" /><span>レポートのみ</span></label>
+          </div>
+        </div>
         <button type='submit' class="button">登録</button>
       </form>
       {html`
