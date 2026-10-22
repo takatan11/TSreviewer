@@ -461,6 +461,44 @@ const css = `
   .review-score { color: var(--star); font-size: 0.95rem; letter-spacing: 2px; }
   .review-score-num { color: var(--text-2); font-size: 0.82rem; margin-left: 0.5rem; letter-spacing: normal; }
   .review-comment { margin: 0.4rem 0 0; white-space: pre-wrap; }
+  /* 通報リンク：専用ページ(/report)へ飛ぶ、うっすら赤いピルボタン。右下に寄せる */
+  .review-foot { display: flex; justify-content: flex-end; align-items: center; gap: 0.4rem; margin-top: 0.5rem; }
+  /* 自分のレビューにだけ出す編集リンク。通報(赤)と並ぶので、こちらは中立グレーのピル */
+  .edit-link {
+    display: inline-flex;
+    align-items: center;
+    height: 30px;
+    padding: 0 0.9rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-2);
+    background: var(--chip);
+    border: 1px solid var(--border-2);
+    border-radius: 999px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .edit-link:hover { color: var(--accent); border-color: var(--accent); }
+  .report-link {
+    display: inline-flex;
+    align-items: center;
+    height: 30px;
+    padding: 0 0.9rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #d93025;
+    background: color-mix(in srgb, #d93025 8%, var(--surface));
+    border: 1px solid color-mix(in srgb, #d93025 28%, var(--border));
+    border-radius: 999px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .report-link:hover {
+    background: color-mix(in srgb, #d93025 15%, var(--surface));
+    border-color: color-mix(in srgb, #d93025 45%, var(--border));
+  }
+  /* ダークでは赤文字を少し明るくして可読性を確保（field-error と同じ方針） */
+  :root:not([data-theme="light"]) .report-link { color: #ff6b5e; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .report-link { color: #ff6b5e; } }
+  .report-subject { max-width: 800px; margin: 1rem auto 0; text-align: right; }
 
   /* ---- お礼／通知画面 ---- */
   .notice { max-width: 520px; margin: 3rem auto; text-align: center; }

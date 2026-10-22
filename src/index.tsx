@@ -7,6 +7,18 @@ import { csrf } from 'hono/csrf'
 import{createClientForRequest} from './db/server.js'
 const app = new Hono()
 
+const ALLOWED_TAGS = [
+  "面白い", "つまらない", "楽単", "普通", "難しい",
+  "先生優しい", "先生厳しい", "出席なし", "出席あり",
+  "課題多い", "課題なし", "テストなし", "テストのみ",
+  "レポートのみ", "必修",
+] as const  //タグの管理をまとめている。
+
+// 通報理由の定型リスト。通報フォームの<option>と、POST /report の許可リスト照合の両方でこの配列を使う
+const ALLOWED_REPORT_REASONS = [
+  "誹謗中傷", "個人情報", "虚偽の情報", "スパム", "その他",
+] as const
+
 // CSRF対策: 状態を変えるPOSTはOrigin/Refererを検証する
 app.use('*', csrf())
 
@@ -20,6 +32,7 @@ app.get('/', async(c) => {
   const keyword = c.req.query('q') ?? ''  ;
   const faculty=c.req.query('faculty') ?? '';
   const department=c.req.query('department') ?? '';
+  const selectedTags=c.req.queries('tags')??[];
   let courseQuery=supabase
   .from('subject')
   .select('class_name,faculty,depart')
@@ -33,6 +46,9 @@ app.get('/', async(c) => {
   }
   if(department){
     courseQuery=courseQuery.eq('depart',department);//学科検索
+  }
+  if(selectedTags.length){
+    courseQuery=courseQuery.contains('tags',selectedTags);
   }
   const{data:courses,error:readError}=await courseQuery;
     if(readError){
@@ -71,11 +87,19 @@ app.get('/', async(c) => {
             </select>
             <button type='button' id='show-all'>すべての授業</button>
           </div>
+          <div class="tag-field">
+            <span class="tag-field-label">タグで絞り込み（選んだタグを全部持つ授業）</span>
+            <div class="tag-group">
+              {ALLOWED_TAGS.map((tag) => (
+                <label class="tag-chip"><input type="checkbox" name="tags" value={tag} checked={selectedTags.includes(tag)} /><span>{tag}</span></label>
+              ))}
+            </div>
+          </div>
         </form>
       </section>
 
       <div id='class-list' class='course-list'></div>
-      {(keyword || faculty || department) && (
+      {(keyword || faculty || department||selectedTags.length>0) && (
         courses && courses.length > 0 ? (
           <div class="course-list">
             {courses.map((course) => (
@@ -208,14 +232,13 @@ app.get('/subject/:name',async(c)=>{
   const subject = subjects?.[0];
   if (error || !subject) return c.text('授業が見つかりません', 404)
 
-  // 開講コマ（複数）とレビュー（新しい順）を並列取得
   const [{data:slots},{data:reviews}]=await Promise.all([
     supabase.from('subject_slot')
             .select('day,period')
-            .eq('subject_id', subject.id),
+            .eq('subject_id', subject.id,),
 
     supabase.from('review')
-            .select('comment, score, created_at')
+            .select('comment, score, created_at, id, user_id')
             .eq('subject_id', subject.id)
             .order(sortOption.column, { ascending: sortOption.ascending }),
 ]);
@@ -291,6 +314,12 @@ app.get('/subject/:name',async(c)=>{
                   <span class="review-score-num">{review.score}</span>
                 </div>
                 <p class="review-comment">{review.comment}</p>
+                <div class="review-foot">
+                  {user && review.user_id === user.id && (
+                    <a href={`/edit-review?subject_id=${subject.id}`} class="edit-link">編集</a>
+                  )}
+                  <a href={`/report?target_type=review&target_id=${review.id}`} class="report-link">通報</a>
+                </div>
               </div>
             ))}
           </div>
@@ -298,6 +327,10 @@ app.get('/subject/:name',async(c)=>{
           <p class="detail-text">まだレビューがありません。</p>
         )}
       </section>
+
+      <p class="report-subject">
+        <a href={`/report?target_type=subject&target_id=${subject.id}`} class="report-link">この授業の情報を通報</a>
+      </p>
     </Layout>
   )
 })//検索したカードをクリックしたときの授業詳細ページ。概要・開講コマ・レビュー一覧を表示
@@ -383,21 +416,10 @@ app.get('/new-class',async(c)=>{
         <div class="tag-field">
           <span class="tag-field-label">タグ（当てはまるものを選んでください・複数可）</span>
           <div class="tag-group">
-            {/* value は POST 側の ALLOWED_TAGS と必ず一致させる。語を足し引きするときは両方直す */}
-            <label class="tag-chip"><input type="checkbox" name="tags" value="面白い" /><span>面白い</span></label>
-            <label class="tag-chip"><input type="checkbox" name="tags" value="つまらない" /><span>つまらない</span></label>
-            <label class="tag-chip"><input type="checkbox" name="tags" value="楽単" /><span>楽単</span></label>
-            <label class="tag-chip"><input type="checkbox" name="tags" value="普通" /><span>普通</span></label>
-            <label class="tag-chip"><input type="checkbox" name="tags" value="難しい" /><span>難しい</span></label>
-            <label class="tag-chip"><input type="checkbox" name="tags" value="先生優しい" /><span>先生優しい</span></label>
-            <label class="tag-chip"><input type="checkbox" name="tags" value="先生厳しい" /><span>先生厳しい</span></label>
-            <label class="tag-chip"><input type="checkbox" name="tags" value="出席なし" /><span>出席なし</span></label>
-            <label class="tag-chip"><input type="checkbox" name="tags" value="出席あり" /><span>出席あり</span></label>
-            <label class="tag-chip"><input type="checkbox" name="tags" value="課題多い" /><span>課題多い</span></label>
-            <label class="tag-chip"><input type="checkbox" name="tags" value="課題なし" /><span>課題なし</span></label>
-            <label class="tag-chip"><input type="checkbox" name="tags" value="テストなし" /><span>テストなし</span></label>
-            <label class="tag-chip"><input type="checkbox" name="tags" value="テストのみ" /><span>テストのみ</span></label>
-            <label class="tag-chip"><input type="checkbox" name="tags" value="レポートのみ" /><span>レポートのみ</span></label>
+            {/* ボタンは ALLOWED_TAGS から生成。タグを足し引きするときは配列だけ直せばよい */}
+            {ALLOWED_TAGS.map((tag) => (
+              <label class="tag-chip"><input type="checkbox" name="tags" value={tag} /><span>{tag}</span></label>
+            ))}
           </div>
         </div>
         <button type='submit' class="button">登録</button>
@@ -433,9 +455,10 @@ app.get('/new-class',async(c)=>{
 app.post('/new-class', async (c) => {
   const user = await getCurrentUser(c)
   if (!user) return c.redirect('/login')
-  const body = await c.req.parseBody();
+  const body = await c.req.parseBody({all:true});
   const value=String(body.class_name).trim();
   const about=String(body.class_about).trim();
+  const tags=[body.tags].flat().filter((t):t is string=>ALLOWED_TAGS.includes(t as any));
   if(value===""||/[.,。、]/.test(value)||value.length>200){
     console.error("授業名が不正です:", JSON.stringify(body.class_name));
     return c.html(
@@ -477,7 +500,8 @@ app.post('/new-class', async (c) => {
       faculty:    body.faculty    as string,
       depart:     body.depart     as string,
       class_about:body.class_about as string,
-      point:body.point as string
+      point:body.point as string,
+      tags:tags
     })
     .select()
     .single();
@@ -555,6 +579,18 @@ app.get('/new-review',async(c)=>{
   const user = await getCurrentUser(c)
   if (!user) return c.redirect('/login')
   const classid=c.req.query('subject_id');
+const {data,error:userError}=await supabase
+.from("review")
+.select("user_id,subject_id")
+.eq("user_id",user.id)
+.eq("subject_id",classid);
+if(data&&data.length>0){
+  return c.redirect(`/edit-review?subject_id=${classid}`);
+}
+if(userError){
+  console.error("レビュー確認に失敗",userError);
+  return c.text("読み込みに失敗しました。時間をおいて再度お試しください。",500);
+}
   return c.html(
     <Layout title="レビュー登録" user={user}>
       <h1>レビュー登録</h1>
@@ -606,11 +642,75 @@ app.get('/new-review',async(c)=>{
 });//レビューの入力ページ
 
 
+app.get('/edit-review', async (c) => {
+  const user = await getCurrentUser(c)
+  if (!user) return c.redirect('/login')
+  const classid = c.req.query('subject_id')
+  // ↓ここは仮のデータ取得（ロジックなので確認を）。自分のレビューを owner-scoped で取得、無ければ新規作成へ
+  const { data: review } = await supabase
+    .from('review')
+    .select('comment, score, attendance, subject_id')
+    .eq('subject_id', classid)
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (!review) return c.redirect(`/new-review?subject_id=${classid}`)
+  return c.html(
+    <Layout title="レビュー編集" user={user}>
+      <h1>レビュー編集</h1>
+      <form class="form-card" id="form-card" method="post" action="/new-review">
+        <div class="form-group">
+          <label for="review">レビュー内容</label>
+          <textarea id="review" name="review" class="form-control" placeholder="授業の感想を入力してください">{review.comment}</textarea>
+        </div>
+        <p id="review-error" class="field-error"></p>
+        <div class="form-group">
+          <label for="score">評価点数</label>
+          <select id="score" name="score" class="form-control">
+            <option value="5" selected={Number(review.score) === 5}>★★★★★ 5</option>
+            <option value="4" selected={Number(review.score) === 4}>★★★★ 4</option>
+            <option value="3" selected={Number(review.score) === 3}>★★★ 3</option>
+            <option value="2" selected={Number(review.score) === 2}>★★ 2</option>
+            <option value="1" selected={Number(review.score) === 1}>★ 1</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="attendance">出席の有無</label>
+          <select id="attendance" name="attendance" class="form-control">
+            <option value="0" selected={Number(review.attendance) === 0}>毎回ある</option>
+            <option value="1" selected={Number(review.attendance) === 1}>なし</option>
+            <option value="2" selected={Number(review.attendance) === 2}>出席課題のみ</option>
+            <option value="3" selected={Number(review.attendance) === 3}>不定期にとる</option>
+          </select>
+        </div>
+        <input type="hidden" name="subject_id" value={review.subject_id} />
+        <button type="submit" class="btn">更新する</button>
+      </form>
+      {html`
+      <script>
+      const reviewError=document.getElementById("review-error");
+      const reviewInputEl=document.getElementById("review");
+      const form=document.getElementById("form-card");
+      form.addEventListener('submit',(event)=>{
+      reviewError.textContent="";
+      const reviewValue=reviewInputEl.value.trim();
+      if(reviewValue===""){
+      event.preventDefault();
+      reviewError.textContent="内容を入力してください"
+      }
+      })
+      </script>
+      `}
+    </Layout>
+  )
+})//既存レビューの編集ページ。初期値を入れたフォームを出し、POST /new-review で更新する
+
+
 app.post('/new-review', async (c) => {
   const user = await getCurrentUser(c)
   if (!user) return c.redirect('/login')
   const body = await c.req.parseBody();
-  const  review=String(body.review).trim();
+  const review=String(body.review).trim();
+
   if(review===""||review.length>2000){
   return c.html(
       <Layout title="入力内容を確認してください">
@@ -626,13 +726,18 @@ app.post('/new-review', async (c) => {
     );
 }
   const score=Math.max(0,Math.min(5,Number(body.score)));
-  const { data: insertedReview, error: insertError } = await createClientForRequest(c)
-    .from('review')
-    .insert({ comment: body.review as string, score: score,attendance:Number(body.attendance), subject_id:Number(body.subject_id),user_id:user.id})
-    .select();              // 挿入した行を返してもらう
+  const attendance=Number(body.attendance);
+  const subjectId=Number(body.subject_id);
 
-  if (insertError) {
-    console.error('insert失敗:', insertError);
+  
+  const { data: existing, error: checkError } = await supabase
+    .from('review')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('subject_id', subjectId)
+    .maybeSingle();
+  if (checkError) {
+    console.error('レビュー確認に失敗:', checkError);
     return c.html(
       <Layout title="保存に失敗しました">
         <div class="error-view">
@@ -646,9 +751,40 @@ app.post('/new-review', async (c) => {
       500
     );
   }
-  console.log('insert成功:', insertedReview);
+
+  // ③ 既存あり→UPDATE（所有者スコープ：user_id＋subject_idで自分の行だけ）／無し→INSERT
+  let writeError;
+  if (existing) {
+    const { error } = await createClientForRequest(c)
+      .from('review')
+      .update({ comment: body.review as string, score: score, attendance: attendance })
+      .eq('user_id', user.id)
+      .eq('subject_id', subjectId);
+    writeError = error;
+  } else {
+    const { error } = await createClientForRequest(c)
+      .from('review')
+      .insert({ comment: body.review as string, score: score, attendance: attendance, subject_id: subjectId, user_id: user.id });
+    writeError = error;
+  }
+
+  if (writeError) {
+    console.error('保存失敗:', writeError);
+    return c.html(
+      <Layout title="保存に失敗しました">
+        <div class="error-view">
+          <h1>レビューの保存に失敗しました</h1>
+          <div class="error-card">
+            <p>入力内容を確認して、もう一度お試しください。</p>
+          </div>
+          <p><a href="/" class="btn">ホームに戻る</a></p>
+        </div>
+      </Layout>,
+      500
+    );
+  }
   return c.redirect('/appriciate');
-}); //新しい投稿の登録の処理。入力された内容をデータベースに登録   入力してもらった
+}); //既存あればUPDATE・無ければINSERT。1人1レビューを維持しつつ編集も兼ねる
 
 
 app.get('/login',async(c)=>{
@@ -755,6 +891,71 @@ app.post("/login/verify",async(c)=>{
   }
   return c.redirect('/');
 })//cookieの検証
+
+app.get("/report",async(c)=>{
+  const user=await getCurrentUser(c);
+  // フォームのhiddenに渡すために読むだけ。ログイン確認・target_type/target_id の検証はここで追加を
+  const targetType=c.req.query('target_type') ?? '';
+  const targetId=c.req.query('target_id') ?? '';
+  return c.html(
+    <Layout title="通報" user={user}>
+      <h1>報告</h1>
+      <form class="form-card" method="post" id="report" action="/report">
+        <input type="hidden" name="target_type" value={targetType} />
+        <input type="hidden" name="target_id" value={targetId} />
+        <div class="form-group">
+          <label for="reason">報告理由</label>
+          <select id="reason" name="reason" class="form-control">
+            {ALLOWED_REPORT_REASONS.map((reason) => (
+              <option value={reason}>{reason}</option>
+            ))}
+          </select>
+        </div>
+        <button type="submit" class="btn">通報する</button>
+      </form>
+    </Layout>
+  )
+})
+
+app.post("/report",async(c)=>{
+  const user= await getCurrentUser(c);
+  const body=await c.req.parseBody();
+  if(!user){
+    return c.redirect("/login");
+  }
+  if(body.target_type!="review"&&body.target_type!="subject"){
+    return c.text("不正な操作です",400);
+  }
+  if(!ALLOWED_REPORT_REASONS.includes(body.reason as any)){
+    return c.text("不正な操作です",400);
+  }
+  // maker_id＝通報された内容の作成者。reviewなら作者user_idをDBから引き、subjectは作者列が無いのでnull
+  let makerId:string|null=null;
+  if(body.target_type==="review"){
+    const {data:reviewRow}=await supabase
+      .from("review")
+      .select("user_id")
+      .eq("id",body.target_id)
+      .maybeSingle();
+    makerId=reviewRow?.user_id ?? null;
+  }
+
+  const {error}=await createClientForRequest(c)
+  .from("report")
+  .insert({
+    target:body.target_type,
+    reporter_id:user.id,
+    reason:body.reason,
+    target_id:body.target_id,
+    maker_id:makerId,
+  });
+
+  if(error){
+    console.error("通報の保存に失敗",error);
+    return c.text("保存に失敗しました。時間をおいて再度お試しください。",500);
+  }
+  return c.redirect("/");
+})
 
 app.post("/logout",async(c)=>{
   const client=createClientForRequest(c);
