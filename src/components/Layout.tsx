@@ -23,8 +23,17 @@ export const Layout = (props: { title: string; children: Child; user?: { email?:
         <header class="site-header">
           <div class="header-inner">
             <a href="/" class="logo">
-              <span class="logo-mark">R</span>
-              <span class="logo-text">Reviewer</span>
+              <span class="logo-mark">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.6" />
+                  <g transform="rotate(18 12 12)">
+                    <path d="M12 4.3 L14.4 12 L12 19.7 L9.6 12 Z" fill="currentColor" opacity="0.32" />
+                    <path d="M12 4.3 L14.4 12 L9.6 12 Z" fill="currentColor" />
+                    <circle cx="12" cy="12" r="1.15" fill="currentColor" />
+                  </g>
+                </svg>
+              </span>
+              <span class="logo-text">単位の地図</span>
             </a>
             <nav class="site-nav">
               <a href="/new-class">授業を登録</a>
@@ -42,8 +51,94 @@ export const Layout = (props: { title: string; children: Child; user?: { email?:
         <main class="container">{props.children}</main>
 
         <footer class="site-footer">
-          <div class="footer-inner">© 2026 Reviewer</div>
+          <div class="footer-inner">
+            <a href="/contact" class="footer-link">お問い合わせ</a>
+            <a href="/privacy" class="footer-link">プライバシーポリシー</a>
+            <span>© 2026 単位の地図</span>
+          </div>
         </footer>
+
+        {/* 初回ログイン時の注意事項モーダル（ログイン中のみ描画）。既定でhidden＝表示・ページ送りはJSで制御する */}
+        {props.user && (
+          <div id="notice-modal" class="notice-overlay" hidden>
+            <div class="notice-card" role="dialog" aria-modal="true" aria-labelledby="notice-title">
+              <div class="notice-page" data-page="0">
+                <h2 id="notice-title" class="notice-head">単位の地図へようこそ</h2>
+                <p>このサイトは、有志の岐阜大学学生が運営する<strong>非公式の授業レビューサイト</strong>です。みんなの口コミで、授業選びをもっとラクに。使い始める前に、いくつか注意事項の確認をお願いします。</p>
+              </div>
+              <div class="notice-page" data-page="1" hidden>
+                <h2 class="notice-head">投稿のルール</h2>
+                <ul>
+                  <li><strong>誹謗中傷</strong>や、<strong>個人を特定する情報</strong>の書き込みはやめてください。</li>
+                  <li>レビューはあくまで<strong>「個人の感想」</strong>です。事実と意見を分けて書きましょう。</li>
+                  <li>ルールに反する投稿は、<strong>通報・削除</strong>、複数回の違反に対しては<strong>アカウント停止</strong>の対象となります。くれぐれもご注意ください。</li>
+                </ul>
+              </div>
+              <div class="notice-page" data-page="2" hidden>
+                <h2 class="notice-head">使うときの注意</h2>
+                <ul>
+                  <li>掲載内容の正確さについては、善処しますが、保証できません。<strong>最終的な判断はご自身で</strong>。</li>
+                  <li>不適切な投稿を見つけたら、<strong>通報</strong>で教えてください。</li>
+                  <li>削除・訂正のご依頼は、<strong>お問い合わせ</strong>から受け付けています。</li>
+                  
+                </ul>
+              </div>
+              <div class="notice-page" data-page="3" hidden>
+                <h2 class="notice-head">さいごに</h2>
+                <ul>
+                  <li>このサイトは皆様の善意の情報提供によって成り立っています。</li>
+                  <li>授業を修了した方はサイト右上の<strong>授業を登録</strong>にて、授業情報を登録してくださると大変助かります。</li>
+                  <li>レビューにも率直なご感想を書き込んでいただけますと幸いです。</li>
+                  
+                </ul>
+              </div>
+
+              <div class="notice-foot">
+                <div class="notice-dots">
+                  <span class="notice-dot is-on" data-dot="0"></span>
+                  <span class="notice-dot" data-dot="1"></span>
+                  <span class="notice-dot" data-dot="2"></span>
+                  <span class="notice-dot" data-dot="3"></span>
+                </div>
+                <div class="notice-nav">
+                  <button type="button" id="notice-prev" class="notice-arrow" aria-label="前へ" hidden>◂</button>
+                  <button type="button" id="notice-next" class="notice-arrow" aria-label="次へ">▸</button>
+                  <button type="button" id="notice-agree" class="btn notice-agree" hidden>同意して始める</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {props.user && raw(`
+        <script>
+        (function(){
+          var KEY='notice_seen';
+          try { if (localStorage.getItem(KEY)) return; } catch(e) {}
+          var modal=document.getElementById('notice-modal'); if(!modal) return;
+          var pages=modal.querySelectorAll('.notice-page');
+          var dots=modal.querySelectorAll('.notice-dot');
+          var prev=document.getElementById('notice-prev');
+          var next=document.getElementById('notice-next');
+          var agree=document.getElementById('notice-agree');
+          var i=0, last=pages.length-1;
+          function render(){
+            for(var k=0;k<pages.length;k++){ pages[k].hidden = (k!==i); }
+            for(var d=0;d<dots.length;d++){ dots[d].classList.toggle('is-on', d===i); }
+            prev.hidden = (i===0);
+            next.hidden = (i===last);
+            agree.hidden = (i!==last);
+          }
+          prev.addEventListener('click', function(){ if(i>0){ i--; render(); } });
+          next.addEventListener('click', function(){ if(i<last){ i++; render(); } });
+          agree.addEventListener('click', function(){
+            try { localStorage.setItem(KEY,'1'); } catch(e) {}
+            modal.hidden=true;
+          });
+          modal.hidden=false;
+          render();
+        })();
+        </script>
+        `)}
       </body>
     </html>
   </>
@@ -51,38 +146,38 @@ export const Layout = (props: { title: string; children: Child; user?: { email?:
 
 const css = `
   :root {
-    --bg: #f9f9f9;
+    --bg: #fcfcfc;
     --surface: #ffffff;
-    --surface-2: #f2f2f2;
-    --text: #0f0f0f;
-    --text-2: #606060;
-    --border: #e5e5e5;
-    --border-2: #d6d6d6;
-    --accent: #065fd4;
-    --thumb-bg: #e8edf3;
-    --thumb-fg: #41576b;
-    --chip: #f2f2f2;
-    --btn-bg: #0f0f0f;
+    --surface-2: #f4f4f5;
+    --text: #111113;
+    --text-2: #6b6b73;
+    --border: #ececee;
+    --border-2: #dedee1;
+    --accent: #4f46e5;
+    --thumb-bg: #f4f4f5;
+    --thumb-fg: #111113;
+    --chip: #f4f4f5;
+    --btn-bg: #111113;
     --btn-fg: #ffffff;
     --star: #e8a300;
-    --radius: 12px;
+    --radius: 6px;
     --maxw: 1080px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #0f0f0f;
-      --surface: #1b1b1b;
-      --surface-2: #272727;
-      --text: #f1f1f1;
-      --text-2: #a6a6a6;
-      --border: #303030;
-      --border-2: #3d3d3d;
-      --accent: #3ea6ff;
-      --thumb-bg: #26313f;
-      --thumb-fg: #9fb7cc;
-      --chip: #272727;
-      --btn-bg: #f1f1f1;
-      --btn-fg: #0f0f0f;
+      --bg: #09090b;
+      --surface: #121214;
+      --surface-2: #1b1b1f;
+      --text: #ededef;
+      --text-2: #8a8a93;
+      --border: #242428;
+      --border-2: #2f2f35;
+      --accent: #8b85f0;
+      --thumb-bg: #1b1b1f;
+      --thumb-fg: #ededef;
+      --chip: #1b1b1f;
+      --btn-bg: #ededef;
+      --btn-fg: #09090b;
       --star: #ffcf4a;
     }
   }
@@ -98,7 +193,7 @@ const css = `
     -webkit-font-smoothing: antialiased;
   }
   a { color: inherit; text-decoration: none; }
-  h1, h2, h3 { margin: 0; font-weight: 700; }
+  h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -0.02em; }
 
   /* ---- ヘッダー ---- */
   .site-header {
@@ -141,7 +236,7 @@ const css = `
     font-size: 0.875rem;
     font-weight: 500;
     padding: 0.45rem 0.8rem;
-    border-radius: 999px;
+    border-radius: var(--radius);
   }
   .site-nav a:hover { background: var(--surface-2); }
   .logout-form { margin: 0; display: flex; }
@@ -152,7 +247,7 @@ const css = `
     color: var(--text-2);
     padding: 0.45rem 0.8rem;
     border: none;
-    border-radius: 999px;
+    border-radius: var(--radius);
     background: transparent;
     cursor: pointer;
   }
@@ -160,20 +255,153 @@ const css = `
 
   /* ---- レイアウト ---- */
   .container { max-width: var(--maxw); margin: 1.75rem auto 3rem; padding: 0 1rem; }
-  .container > h1 { font-size: 1.35rem; max-width: 620px; margin: 0 auto 1.1rem; letter-spacing: -0.01em; }
+  .container > h1 { font-size: 1.55rem; max-width: 620px; margin: 0 auto 1.1rem; letter-spacing: -0.025em; }
   .site-footer { border-top: 1px solid var(--border); color: var(--text-2); }
-  .footer-inner { max-width: var(--maxw); margin: 0 auto; padding: 1.5rem 1rem; font-size: 0.8rem; }
+  .footer-inner {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .footer-link { font-weight: 500; }
+  .footer-link:hover { color: var(--text); text-decoration: underline; }
+
+  /* ---- お問い合わせページ（静的・mailto） ---- */
+  .contact-page { max-width: 620px; margin: 0 auto; }
+  .contact-page h1 { font-size: 1.5rem; letter-spacing: -0.01em; margin-bottom: 0.9rem; }
+  .contact-lead { color: var(--text); font-size: 0.95rem; margin: 0 0 1.3rem; }
+  .contact-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.2rem 1.35rem;
+    text-align: center;
+  }
+  .contact-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    margin-bottom: 0.5rem;
+  }
+  .contact-mail {
+    display: inline-block;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--accent);
+    word-break: break-all;
+  }
+  .contact-mail:hover { text-decoration: underline; }
+  .contact-note { color: var(--text-2); font-size: 0.8rem; margin: 0.7rem 0 0; }
+  .contact-guide { margin-top: 1.6rem; }
+  .contact-guide h2 {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    margin-bottom: 0.6rem;
+  }
+  .contact-guide ul { margin: 0; padding-left: 1.2rem; }
+  .contact-guide li { font-size: 0.9rem; margin-bottom: 0.4rem; }
+  .contact-page .back-link { max-width: none; margin: 1.8rem 0 0; }
+
+  /* ---- 法的ページ（プライバシーポリシー等） ---- */
+  .legal-page { max-width: 720px; margin: 0 auto; }
+  .legal-page h1 { font-size: 1.5rem; letter-spacing: -0.01em; margin-bottom: 0.4rem; }
+  .legal-updated { color: var(--text-2); font-size: 0.8rem; margin: 0 0 1.3rem; }
+  .legal-lead { color: var(--text); font-size: 0.95rem; margin: 0 0 1.6rem; }
+  .legal-section { margin-bottom: 1.5rem; }
+  .legal-section h2 { font-size: 1rem; margin-bottom: 0.5rem; }
+  .legal-section p { margin: 0; font-size: 0.9rem; color: var(--text); }
+  .legal-section ul { margin: 0; padding-left: 1.2rem; }
+  .legal-section li { font-size: 0.9rem; margin-bottom: 0.4rem; }
+  .legal-inline-link { color: var(--accent); font-weight: 500; }
+  .legal-inline-link:hover { text-decoration: underline; }
+  .legal-page .back-link { max-width: none; margin: 2rem 0 0; }
+
+  /* ---- 初回注意事項モーダル（3ページ・JSで表示/ページ送り） ---- */
+  .notice-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 100;
+  }
+  .notice-overlay[hidden] { display: none; }
+  .notice-card {
+    width: 100%;
+    max-width: 630px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 2.4rem 2.25rem 1.8rem;
+    box-shadow: 0 18px 56px rgba(0, 0, 0, 0.3);
+  }
+  .notice-page { min-height: 13.5rem; }
+  .notice-page[hidden] { display: none; }
+  .notice-head { font-size: 1.7rem; margin-bottom: 1.05rem; }
+  .notice-page p { margin: 0; font-size: 1.35rem; color: var(--text); }
+  .notice-page ul { margin: 0; padding-left: 1.8rem; }
+  .notice-page li { font-size: 1.35rem; margin-bottom: 0.8rem; color: var(--text); }
+  /* フッターは縦積み・中央寄せ：ドットの下に、ページ送り矢印を中央下部へ配置 */
+  .notice-foot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.3rem;
+    margin-top: 1.8rem;
+  }
+  .notice-dots { display: flex; gap: 0.6rem; }
+  .notice-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--border-2);
+    transition: background 0.15s, transform 0.15s;
+  }
+  .notice-dot.is-on { background: var(--accent); transform: scale(1.15); }
+  .notice-nav { display: flex; align-items: center; justify-content: center; gap: 0.75rem; }
+  .notice-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    font-size: 1.65rem;
+    line-height: 1;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--chip);
+    border: 1px solid var(--border-2);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .notice-arrow:hover { background: var(--surface-2); border-color: var(--text-2); }
+  .notice-arrow[hidden] { display: none; }
+  .notice-agree[hidden] { display: none; }
+  .notice-agree { height: 60px; padding: 0 1.8rem; font-size: 1.3rem; }
 
   /* ---- ホーム 検索 ---- */
   .home-hero { max-width: 720px; margin: 0 auto; }
-  .home-title { font-size: 1.35rem; letter-spacing: -0.01em; margin-bottom: 1rem; }
+  .home-title { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 1.1rem; }
   .search-card {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 16px;
+    border-radius: var(--radius);
     padding: 1rem;
   }
   .search-row { display: flex; gap: 0.6rem; align-items: stretch; }
@@ -187,10 +415,10 @@ const css = `
     color: var(--text);
     background: var(--surface);
     border: 1px solid var(--border-2);
-    border-radius: 10px;
+    border-radius: var(--radius);
     transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .search-input { border-radius: 999px; padding-left: 1.1rem; }
+  .search-input { border-radius: var(--radius); padding-left: 1.1rem; }
   .search-control:focus {
     outline: none;
     border-color: var(--accent);
@@ -220,7 +448,7 @@ const css = `
     color: var(--btn-fg);
     background: var(--btn-bg);
     border: none;
-    border-radius: 999px;
+    border-radius: var(--radius);
     cursor: pointer;
     white-space: nowrap;
     transition: opacity 0.15s, transform 0.04s;
@@ -238,7 +466,7 @@ const css = `
     color: var(--text);
     background: var(--chip);
     border: none;
-    border-radius: 999px;
+    border-radius: var(--radius);
     cursor: pointer;
     transition: background 0.15s;
   }
@@ -254,9 +482,9 @@ const css = `
     padding: 0.3rem;
     list-style: none;
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    border: 1px solid var(--border-2);
+    border-radius: var(--radius);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
     z-index: 30;
     max-height: 17rem;
     overflow-y: auto;
@@ -268,36 +496,38 @@ const css = `
   /* ---- 授業カード（グリッド） ---- */
   .course-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 1.5rem 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0.75rem;
     margin-top: 1.75rem;
   }
   .course-card { display: flex; }
   .thumb {
     width: 100%;
-    min-height: 120px;
+    min-height: 104px;
+    border: 1px solid var(--border);
     border-radius: var(--radius);
-    background: var(--thumb-bg);
-    color: var(--thumb-fg);
-    padding: 0.95rem 1.05rem;
+    background: var(--surface);
+    color: var(--text);
+    padding: 1rem 1.1rem;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
-    gap: 0.3rem;
+    justify-content: flex-start;
+    gap: 0.4rem;
     overflow: hidden;
-    transition: transform 0.15s;
+    transition: border-color 0.12s, background 0.12s;
   }
-  .course-card:hover .thumb { transform: translateY(-2px); }
+  .course-card:hover .thumb { border-color: var(--text-2); background: var(--surface-2); }
   .thumb-title {
-    font-size: 1.02rem;
-    font-weight: 700;
-    line-height: 1.3;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  .thumb-meta { font-size: 0.8rem; opacity: 0.85; }
+  .thumb-meta { font-size: 0.78rem; color: var(--text-2); margin-top: auto; }
   .empty-note { margin-top: 2rem; color: var(--text-2); text-align: center; }
 
   /* ---- フォーム（授業登録・レビュー） ---- */
@@ -306,7 +536,7 @@ const css = `
     margin: 0 auto;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 16px;
+    border-radius: var(--radius);
     padding: 1.5rem;
   }
   form.new-class > div, .form-group { margin-bottom: 1.1rem; }
@@ -326,7 +556,7 @@ const css = `
     color: var(--text);
     background: var(--surface);
     border: 1px solid var(--border-2);
-    border-radius: 10px;
+    border-radius: var(--radius);
     transition: border-color 0.15s, box-shadow 0.15s;
   }
   textarea.form-control { height: auto; min-height: 8rem; padding: 0.7rem 0.9rem; resize: vertical; }
@@ -374,7 +604,7 @@ const css = `
     color: var(--text);
     background: var(--chip);
     border: 1px solid transparent;
-    border-radius: 999px;
+    border-radius: var(--radius);
     transition: background 0.15s, border-color 0.15s, color 0.15s;
   }
   .tag-chip span:hover { background: var(--surface-2); }
@@ -403,7 +633,7 @@ const css = `
     background: var(--chip);
     color: var(--text);
     padding: 0.32rem 0.8rem;
-    border-radius: 999px;
+    border-radius: var(--radius);
     font-size: 0.78rem;
     font-weight: 500;
   }
@@ -412,7 +642,7 @@ const css = `
     margin: 1rem auto 0;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: var(--radius);
     padding: 1.2rem 1.35rem;
   }
   .detail-section h2 {
@@ -442,7 +672,7 @@ const css = `
     color: var(--text);
     background-color: var(--surface);
     border: 1px solid var(--border-2);
-    border-radius: 999px;
+    border-radius: var(--radius);
     cursor: pointer;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23888' d='M6 8 0 0h12z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
@@ -457,7 +687,7 @@ const css = `
   .slot-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
   .slot-item { background: var(--chip); border-radius: 8px; padding: 0.45rem 0.9rem; font-size: 0.9rem; font-weight: 500; }
   .review-list { display: flex; flex-direction: column; gap: 0.75rem; }
-  .review-item { border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem 1.05rem; }
+  .review-item { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1.05rem; }
   .review-score { color: var(--star); font-size: 0.95rem; letter-spacing: 2px; }
   .review-score-num { color: var(--text-2); font-size: 0.82rem; margin-left: 0.5rem; letter-spacing: normal; }
   .review-comment { margin: 0.4rem 0 0; white-space: pre-wrap; }
@@ -474,10 +704,34 @@ const css = `
     color: var(--text-2);
     background: var(--chip);
     border: 1px solid var(--border-2);
-    border-radius: 999px;
+    border-radius: var(--radius);
     transition: color 0.15s, border-color 0.15s;
   }
   .edit-link:hover { color: var(--accent); border-color: var(--accent); }
+  /* 削除：自分のレビュー管理なので既定は編集と同じ中立グレー。破壊的操作なのでホバーで赤く警告 */
+  .delete-form { display: inline-flex; margin: 0; }
+  .delete-btn {
+    display: inline-flex;
+    align-items: center;
+    height: 30px;
+    padding: 0 0.9rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--text-2);
+    background: var(--chip);
+    border: 1px solid var(--border-2);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .delete-btn:hover {
+    color: #d93025;
+    border-color: color-mix(in srgb, #d93025 45%, var(--border-2));
+    background: color-mix(in srgb, #d93025 7%, transparent);
+  }
+  :root:not([data-theme="light"]) .delete-btn:hover { color: #ff6b5e; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .delete-btn:hover { color: #ff6b5e; } }
   .report-link {
     display: inline-flex;
     align-items: center;
@@ -488,7 +742,7 @@ const css = `
     color: #d93025;
     background: color-mix(in srgb, #d93025 8%, var(--surface));
     border: 1px solid color-mix(in srgb, #d93025 28%, var(--border));
-    border-radius: 999px;
+    border-radius: var(--radius);
     transition: background 0.15s, border-color 0.15s;
   }
   .report-link:hover {

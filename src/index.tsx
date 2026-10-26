@@ -19,6 +19,9 @@ const ALLOWED_REPORT_REASONS = [
   "誹謗中傷", "個人情報", "虚偽の情報", "スパム", "その他",
 ] as const
 
+// ★★★ 要差し替え：専用Gmailを取得したら、このアドレスを実アドレスに変える（ここ1か所だけ）★★★
+const CONTACT_EMAIL = "your-contact-address@gmail.com"
+
 // CSRF対策: 状態を変えるPOSTはOrigin/Refererを検証する
 app.use('*', csrf())
 
@@ -318,6 +321,13 @@ app.get('/subject/:name',async(c)=>{
                   {user && review.user_id === user.id && (
                     <a href={`/edit-review?subject_id=${subject.id}`} class="edit-link">編集</a>
                   )}
+                  {user && review.user_id === user.id && (
+                    <form method="post" action="/delete-review" class="delete-form" onsubmit="return confirm('このレビューを削除しますか？')">
+                      <input type="hidden" name="review_id" value={review.id} />
+                      <input type="hidden" name="subject_name" value={subject.class_name} />
+                      <button type="submit" class="delete-btn">削除</button>
+                    </form>
+                  )}
                   <a href={`/report?target_type=review&target_id=${review.id}`} class="report-link">通報</a>
                 </div>
               </div>
@@ -574,6 +584,118 @@ app.get('/appriciate',async(c)=>{
 })//登録のお礼が出る画面
 
 
+app.get('/contact', async (c) => {
+  const user = await getCurrentUser(c)
+  const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('【単位の地図】お問い合わせ')}`
+  return c.html(
+    <Layout title="お問い合わせ" user={user}>
+      <div class="contact-page">
+        <h1>お問い合わせ</h1>
+        <p class="contact-lead">
+          本サイトは有志の学生が運営する<strong>非公式サイト</strong>です。ご質問・ご意見のほか、
+          掲載内容の<strong>削除・訂正のご依頼</strong>も、下記のメールアドレスで受け付けています。
+        </p>
+
+        <div class="contact-card">
+          <span class="contact-label">連絡先メール</span>
+          <a href={mailto} class="contact-mail">{CONTACT_EMAIL}</a>
+          <p class="contact-note">
+            メールソフトが開きます。開かない場合は、上記アドレス宛に直接お送りください。
+          </p>
+        </div>
+
+        <section class="contact-guide">
+          <h2>ご依頼の際のお願い</h2>
+          <ul>
+            <li><strong>削除・訂正のご依頼</strong>の場合は、対象の<strong>授業名</strong>と<strong>該当するレビューの内容</strong>など、特定できる情報をご記入ください。</li>
+            <li>内容を確認のうえ対応します。<strong>返信までお時間をいただく場合があります</strong>のでご了承ください。</li>
+          </ul>
+        </section>
+
+        <p class="back-link"><a href="/">← ホームに戻る</a></p>
+      </div>
+    </Layout>
+  )
+})//お問い合わせ（静的な連絡先ページ。mailtoのみ・DB保存なし）
+
+
+app.get('/privacy', async (c) => {
+  const user = await getCurrentUser(c)
+  return c.html(
+    <Layout title="プライバシーポリシー" user={user}>
+      <div class="legal-page">
+        <h1>プライバシーポリシー</h1>
+        <p class="legal-updated">施行日：【2026年10月26日】</p>
+
+        <p class="legal-lead">
+          本サイト「単位の地図」（有志の学生が運営する<strong>非公式の授業レビューサイト</strong>。以下「本サイト」）は、
+          本サイトで提供するサービス（以下「本サービス」）における利用者の個人情報の取扱いについて、以下のとおりプライバシーポリシー（以下「本ポリシー」）を定めます。
+        </p>
+
+        <section class="legal-section">
+          <h2>第1条（個人情報）</h2>
+          <p>「個人情報」とは、個人情報保護法にいう「個人情報」を指し、生存する個人に関する情報であって、当該情報に含まれる氏名、メールアドレスその他の記述等により特定の個人を識別できる情報をいいます。</p>
+        </section>
+
+        <section class="legal-section">
+          <h2>第2条（個人情報の収集方法）</h2>
+          <p>本サイトは、利用者が利用登録（ログイン）を行う際に、大学が発行するメールアドレス（@s.thers.ac.jp）を取得します。また、利用者がレビューや授業情報の投稿、通報などを行う際に、その内容・評価・出席情報・投稿日時・利用者を識別するID等を取得します。さらに、ログイン状態を保持するため、認証用のCookieを利用します（広告・行動追跡の目的では利用しません）。</p>
+        </section>
+
+        <section class="legal-section">
+          <h2>第3条（個人情報を収集・利用する目的）</h2>
+          <p>本サイトが個人情報を収集・利用する目的は、以下のとおりです。</p>
+          <ul>
+            <li>利用者の本人確認およびログイン状態の管理のため</li>
+            <li>投稿されたレビュー・授業情報を表示し、本サービスを提供・運営するため</li>
+            <li>不適切な投稿の確認・削除など、本サービスの健全な運営（モデレーション）のため</li>
+            <li>利用者からのお問い合わせ、掲載内容の削除・訂正のご依頼に対応するため</li>
+            <li>上記の利用目的に付随する目的のため</li>
+          </ul>
+        </section>
+
+        <section class="legal-section">
+          <h2>第4条（利用目的の変更）</h2>
+          <p>本サイトは、利用目的が変更前と関連性を有すると合理的に認められる場合に限り、個人情報の利用目的を変更するものとします。利用目的を変更した場合には、変更後の目的を本サイト上に公表します。</p>
+        </section>
+
+        <section class="legal-section">
+          <h2>第5条（個人情報の第三者提供）</h2>
+          <p>本サイトは、法令に基づく場合を除き、あらかじめ利用者の同意を得ることなく、第三者に個人情報を提供しません。ただし、本サービスの運営のため、データベースおよび認証基盤の提供事業者である <strong>Supabase</strong> に個人情報の取扱いを委託しています（委託先への提供は、上記の第三者提供には該当しません）。なお、Supabase のサーバー所在地によっては、個人情報が<strong>外国に保管される場合</strong>があります（保管地域：【Supabaseのリージョン／保管国】）。</p>
+        </section>
+
+        <section class="legal-section">
+          <h2>第6条（個人情報の開示）</h2>
+          <p>本サイトは、本人から個人情報の開示を求められたときは、本人に対し、遅滞なくこれを開示します。ただし、開示することにより本人または第三者の生命・身体・財産その他の権利利益を害するおそれがある場合その他法令に違反することとなる場合は、その全部または一部を開示しないことがあり、その場合は、その旨を遅滞なく通知します。</p>
+        </section>
+
+        <section class="legal-section">
+          <h2>第7条（個人情報の訂正および削除）</h2>
+          <p>利用者は、本サイトの保有する自己の個人情報が誤った情報である場合には、本サイトに対し、個人情報の訂正・追加・削除（以下「訂正等」）を請求することができます。本サイトは、請求に応じる必要があると判断した場合には、遅滞なく当該個人情報の訂正等を行い、その旨を利用者に通知します。掲載内容（レビュー等）の削除・訂正のご依頼についても、第10条の窓口で受け付けます。</p>
+        </section>
+
+        <section class="legal-section">
+          <h2>第8条（個人情報の利用停止等）</h2>
+          <p>本サイトは、本人から、個人情報が利用目的の範囲を超えて取り扱われているという理由、または不正の手段により取得されたものであるという理由により、その利用の停止または消去（以下「利用停止等」）を求められた場合には、遅滞なく必要な調査を行い、その結果に基づき、必要と認めるときは利用停止等を行い、その旨を本人に通知します。</p>
+        </section>
+
+        <section class="legal-section">
+          <h2>第9条（プライバシーポリシーの変更）</h2>
+          <p>本ポリシーの内容は、法令その他本ポリシーに別段の定めのある事項を除き、利用者に通知することなく変更することができます。本サイトが別途定める場合を除き、変更後のプライバシーポリシーは、本サイトに掲載したときから効力を生じます。</p>
+        </section>
+
+        <section class="legal-section">
+          <h2>第10条（お問い合わせ窓口）</h2>
+          <p>本ポリシーに関するお問い合わせ、ならびに個人情報の開示・訂正・削除・利用停止等のご請求は、<a href="/contact" class="legal-inline-link">お問い合わせページ</a>またはメール（{CONTACT_EMAIL}）までご連絡ください。</p>
+        </section>
+
+        <p class="back-link"><a href="/">← ホームに戻る</a></p>
+      </div>
+    </Layout>
+  )
+})//プライバシーポリシー
+
+
 
 app.get('/new-review',async(c)=>{
   const user = await getCurrentUser(c)
@@ -787,6 +909,26 @@ app.post('/new-review', async (c) => {
 }); //既存あればUPDATE・無ければINSERT。1人1レビューを維持しつつ編集も兼ねる
 
 
+app.post("/delete-review",async (c)=>{
+  const user=await getCurrentUser(c);
+  if(!user){
+    return c.redirect("/login");
+  }
+  const body=await c.req.parseBody();
+  const name=body.subject_name;
+  const id=user.id;
+  const {error}=await createClientForRequest(c)
+        .from("review")
+        .delete()
+        .eq("id",body.review_id)
+        .eq("user_id",id)
+  if(error){
+    console.error("レビュー削除に失敗",error);
+    return c.text("削除に失敗しました。時間をおいて再度お試しください。",500);
+  }
+  return c.redirect(`/subject/${encodeURIComponent(String(name))}`)
+})
+
 app.get('/login',async(c)=>{
   const user = await getCurrentUser(c)
   return c.html(
@@ -891,6 +1033,10 @@ app.post("/login/verify",async(c)=>{
   }
   return c.redirect('/');
 })//cookieの検証
+
+app.get("/alert",async(c)=>{
+
+})
 
 app.get("/report",async(c)=>{
   const user=await getCurrentUser(c);
