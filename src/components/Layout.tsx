@@ -53,6 +53,7 @@ export const Layout = (props: { title: string; children: Child; user?: { email?:
         <footer class="site-footer">
           <div class="footer-inner">
             <a href="/contact" class="footer-link">お問い合わせ</a>
+            <a href="/help" class="footer-link">ヘルプ</a>
             <a href="/privacy" class="footer-link">プライバシーポリシー</a>
             <span>© 2026 単位の地図</span>
           </div>
@@ -79,7 +80,7 @@ export const Layout = (props: { title: string; children: Child; user?: { email?:
                 <ul>
                   <li>掲載内容の正確さについては、善処しますが、保証できません。<strong>最終的な判断はご自身で</strong>。</li>
                   <li>不適切な投稿を見つけたら、<strong>通報</strong>で教えてください。</li>
-                  <li>削除・訂正のご依頼は、<strong>お問い合わせ</strong>から受け付けています。</li>
+                  <li>削除・訂正のご依頼やご意見・ご要望は、<strong>お問い合わせ</strong>から受け付けています。</li>
                   
                 </ul>
               </div>

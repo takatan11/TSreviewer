@@ -696,6 +696,48 @@ app.get('/privacy', async (c) => {
 })//プライバシーポリシー
 
 
+app.get('/help', async (c) => {
+  const user = await getCurrentUser(c)
+  return c.html(
+    <Layout title="ヘルプ" user={user}>
+      <div class="legal-page">
+        <h1>ヘルプ</h1>
+        <p class="legal-lead">「単位の地図」の使い方と、よくある質問をまとめています。</p>
+
+        <section class="legal-section">
+          <h2>使い方</h2>
+          <ul>
+            <li><strong>授業を探す</strong>：ホームの検索から、授業名・学部・学科・タグで絞り込めます。「すべての授業」ボタンで一覧も見られます。</li>
+            <li><strong>レビューを書く</strong>：ログイン後、授業ページの「レビューを書く」から、評価点・出席・感想を投稿できます。</li>
+            <li><strong>レビューを編集・削除する</strong>：自分のレビューには「編集」「削除」ボタンが表示されます。</li>
+            <li><strong>授業を登録する</strong>：検索して見つからない授業は、「授業を登録」から追加できます。タグも付けられます。</li>
+          </ul>
+        </section>
+
+        <section class="legal-section">
+          <h2>よくある質問</h2>
+          <p><strong>Q. ログインできません。</strong><br />
+            大学が発行するメール（@s.thers.ac.jp）宛に届く確認コードで認証します。メールが届かない場合は、迷惑メールフォルダもご確認ください。</p>
+          <p><strong>Q. 同じ授業に何度もレビューできますか？</strong><br />
+            1つの授業につき、あなたのレビューは1件です。もう一度投稿すると、既存のレビューが更新（上書き）されます。</p>
+          <p><strong>Q. 不適切な投稿を見つけました。</strong><br />
+            各レビューの「通報」から運営に報告できます。確認のうえ対応します。</p>
+          <p><strong>Q. 自分の投稿や情報を削除したいです。</strong><br />
+            自分のレビューは「削除」ボタンで消せます。そのほかの削除・訂正のご依頼は、お問い合わせからご連絡ください。</p>
+        </section>
+
+        <section class="legal-section">
+          <h2>解決しないときは</h2>
+          <p><a href="/contact" class="legal-inline-link">お問い合わせページ</a>からご連絡ください。</p>
+        </section>
+
+        <p class="back-link"><a href="/">← ホームに戻る</a></p>
+      </div>
+    </Layout>
+  )
+})//ヘルプ（使い方・FAQの静的ページ・テンプレート）
+
+
 
 app.get('/new-review',async(c)=>{
   const user = await getCurrentUser(c)
@@ -884,6 +926,42 @@ app.post('/new-review', async (c) => {
       .eq('subject_id', subjectId);
     writeError = error;
   } else {
+    // レート制限：直近24時間に30件以上レビューしていたら新規投稿を拒否（UPDATEは対象外）
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count, error: countError } = await supabase
+      .from('review')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', since);
+    if (countError) {
+      console.error('投稿数の確認に失敗:', countError);
+      return c.html(
+        <Layout title="保存に失敗しました">
+          <div class="error-view">
+            <h1>レビューの保存に失敗しました</h1>
+            <div class="error-card">
+              <p>入力内容を確認して、もう一度お試しください。</p>
+            </div>
+            <p><a href="/" class="btn">ホームに戻る</a></p>
+          </div>
+        </Layout>,
+        500
+      );
+    }
+    if ((count ?? 0) >= 30) {
+      return c.html(
+        <Layout title="投稿上限に達しました" user={user}>
+          <div class="error-view">
+            <h1>本日の投稿上限に達しました</h1>
+            <div class="error-card">
+              <p>レビューの投稿は24時間あたり30件までです。時間をおいて、もう一度お試しください。</p>
+            </div>
+            <p><a href="/" class="btn">ホームに戻る</a></p>
+          </div>
+        </Layout>,
+        429
+      );
+    }
     const { error } = await createClientForRequest(c)
       .from('review')
       .insert({ comment: body.review as string, score: score, attendance: attendance, subject_id: subjectId, user_id: user.id });
@@ -1034,9 +1112,6 @@ app.post("/login/verify",async(c)=>{
   return c.redirect('/');
 })//cookieの検証
 
-app.get("/alert",async(c)=>{
-
-})
 
 app.get("/report",async(c)=>{
   const user=await getCurrentUser(c);
