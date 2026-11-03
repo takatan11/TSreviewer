@@ -36,7 +36,6 @@ export const Layout = (props: { title: string; children: Child; user?: { email?:
               <span class="logo-text">単位の地図</span>
             </a>
             <nav class="site-nav">
-              <a href="/new-class">授業を登録</a>
               {props.user ? (
                 <form method="post" action="/logout" class="logout-form">
                   <button type="submit">ログアウト</button>
@@ -88,7 +87,7 @@ export const Layout = (props: { title: string; children: Child; user?: { email?:
                 <h2 class="notice-head">さいごに</h2>
                 <ul>
                   <li>このサイトは皆様の善意の情報提供によって成り立っています。</li>
-                  <li>授業を修了した方はサイト右上の<strong>授業を登録</strong>にて、授業情報を登録してくださると大変助かります。</li>
+                  <li>授業を修了した方はホームの<strong>「＋ 授業を登録」</strong>から、授業情報を登録してくださると大変助かります。</li>
                   <li>レビューにも率直なご感想を書き込んでいただけますと幸いです。</li>
                   
                 </ul>
@@ -129,8 +128,8 @@ export const Layout = (props: { title: string; children: Child; user?: { email?:
             next.hidden = (i===last);
             agree.hidden = (i!==last);
           }
-          prev.addEventListener('click', function(){ if(i>0){ i--; render(); } });
-          next.addEventListener('click', function(){ if(i<last){ i++; render(); } });
+          prev.addEventListener('click', function(){ if(i>0){ i--; modal.dataset.dir='prev'; render(); } });
+          next.addEventListener('click', function(){ if(i<last){ i++; modal.dataset.dir='next'; render(); } });
           agree.addEventListener('click', function(){
             try { localStorage.setItem(KEY,'1'); } catch(e) {}
             modal.hidden=true;
@@ -147,20 +146,22 @@ export const Layout = (props: { title: string; children: Child; user?: { email?:
 
 const css = `
   :root {
-    --bg: #fcfcfc;
+    --bg: #f6f6f7;
     --surface: #ffffff;
     --surface-2: #f4f4f5;
     --text: #111113;
     --text-2: #6b6b73;
-    --border: #ececee;
+    --border: #e4e4e7;
     --border-2: #dedee1;
+    /* 入力欄・セレクト・タグなど“操作できる部品”の枠。背景に対し3:1以上（WCAG 1.4.11） */
+    --control-border: #8a8a93;
     --accent: #4f46e5;
     --thumb-bg: #f4f4f5;
     --thumb-fg: #111113;
     --chip: #f4f4f5;
     --btn-bg: #111113;
     --btn-fg: #ffffff;
-    --star: #e8a300;
+    --star: #b7791f;
     --radius: 6px;
     --maxw: 1080px;
   }
@@ -171,8 +172,9 @@ const css = `
       --surface-2: #1b1b1f;
       --text: #ededef;
       --text-2: #8a8a93;
-      --border: #242428;
+      --border: #2c2c31;
       --border-2: #2f2f35;
+      --control-border: #68686f;
       --accent: #8b85f0;
       --thumb-bg: #1b1b1f;
       --thumb-fg: #ededef;
@@ -311,7 +313,6 @@ const css = `
   }
   .contact-guide ul { margin: 0; padding-left: 1.2rem; }
   .contact-guide li { font-size: 0.9rem; margin-bottom: 0.4rem; }
-  .contact-page .back-link { max-width: none; margin: 1.8rem 0 0; }
 
   /* ---- 法的ページ（プライバシーポリシー等） ---- */
   .legal-page { max-width: 720px; margin: 0 auto; }
@@ -325,7 +326,6 @@ const css = `
   .legal-section li { font-size: 0.9rem; margin-bottom: 0.4rem; }
   .legal-inline-link { color: var(--accent); font-weight: 500; }
   .legal-inline-link:hover { text-decoration: underline; }
-  .legal-page .back-link { max-width: none; margin: 2rem 0 0; }
 
   /* ---- 初回注意事項モーダル（3ページ・JSで表示/ページ送り） ---- */
   .notice-overlay {
@@ -383,7 +383,7 @@ const css = `
     font-family: inherit;
     color: var(--text);
     background: var(--chip);
-    border: 1px solid var(--border-2);
+    border: 1px solid var(--control-border);
     border-radius: 999px;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
@@ -415,7 +415,7 @@ const css = `
     font-family: inherit;
     color: var(--text);
     background: var(--surface);
-    border: 1px solid var(--border-2);
+    border: 1px solid var(--control-border);
     border-radius: var(--radius);
     transition: border-color 0.15s, box-shadow 0.15s;
   }
@@ -456,22 +456,6 @@ const css = `
   }
   .btn:hover, .button:hover { opacity: 0.88; }
   .btn:active, .button:active { transform: translateY(1px); }
-  #show-all {
-    display: inline-flex;
-    align-items: center;
-    height: 38px;
-    padding: 0 1.1rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    font-family: inherit;
-    color: var(--text);
-    background: var(--chip);
-    border: none;
-    border-radius: var(--radius);
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-  #show-all:hover { background: var(--surface-2); }
 
   /* ---- サジェスト候補 ---- */
   .suggest-list {
@@ -495,11 +479,20 @@ const css = `
   .suggest-list li:hover { background: var(--surface-2); }
 
   /* ---- 授業カード（グリッド） ---- */
+  .list-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 1.75rem;
+  }
+  .list-heading { font-size: 1rem; display: flex; align-items: baseline; gap: 0.5rem; }
+  .list-count { font-size: 0.82rem; font-weight: 500; color: var(--text-2); }
   .course-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 0.75rem;
-    margin-top: 1.75rem;
+    margin-top: 0.9rem;
   }
   .course-card { display: flex; }
   .thumb {
@@ -515,9 +508,9 @@ const css = `
     justify-content: flex-start;
     gap: 0.4rem;
     overflow: hidden;
-    transition: border-color 0.12s, background 0.12s;
+    transition: border-color 0.15s, background 0.15s, transform 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
   }
-  .course-card:hover .thumb { border-color: var(--text-2); background: var(--surface-2); }
+  .course-card:hover .thumb { border-color: var(--text-2); background: var(--surface-2); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08); }
   .thumb-title {
     font-size: 0.95rem;
     font-weight: 600;
@@ -556,7 +549,7 @@ const css = `
     font-family: inherit;
     color: var(--text);
     background: var(--surface);
-    border: 1px solid var(--border-2);
+    border: 1px solid var(--control-border);
     border-radius: var(--radius);
     transition: border-color 0.15s, box-shadow 0.15s;
   }
@@ -585,6 +578,50 @@ const css = `
     color: var(--text-2);
   }
   .tag-group { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  /* タグのグループ：左にグループ名、右にそのグループのタグ。列をそろえて基準ごとに読めるようにする */
+  .tag-groups { display: flex; flex-direction: column; gap: 0.6rem; }
+  .tag-row {
+    display: grid;
+    grid-template-columns: 5.5rem 1fr;
+    align-items: start;
+    gap: 0.75rem;
+  }
+  .tag-row-label {
+    padding-top: 0.45rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  /* 検索欄のタグ絞り込み（折りたたみ） */
+  .tag-filter { border-top: 1px solid var(--border); padding-top: 0.75rem; }
+  .tag-filter-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-2);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+  .tag-filter-summary::-webkit-details-marker { display: none; }
+  .tag-filter-summary::after {
+    content: "▾";
+    font-size: 0.8rem;
+    transition: transform 0.15s;
+  }
+  .tag-filter[open] > .tag-filter-summary::after { transform: rotate(180deg); }
+  .tag-filter-summary:hover { color: var(--text); }
+  .tag-filter-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--radius);
+  }
+  .tag-filter-hint { margin: 0.6rem 0 0.6rem; font-size: 0.78rem; color: var(--text-2); }
   .tag-group .tag-chip { position: relative; display: inline-flex; margin: 0; cursor: pointer; }
   /* チェックボックス本体は視覚的に隠す（form.new-class input より詳細度を高くして上書き） */
   .tag-chip input[type="checkbox"] {
@@ -604,24 +641,35 @@ const css = `
     font-weight: 500;
     color: var(--text);
     background: var(--chip);
-    border: 1px solid transparent;
+    border: 1px solid var(--control-border);
     border-radius: var(--radius);
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    transition: background 0.18s, border-color 0.18s, color 0.18s, transform 0.1s;
   }
   .tag-chip span:hover { background: var(--surface-2); }
   .tag-chip input:checked + span {
     color: var(--accent);
     background: color-mix(in srgb, var(--accent) 14%, var(--surface));
-    border-color: color-mix(in srgb, var(--accent) 45%, var(--border-2));
+    border-color: var(--accent);
   }
   .tag-chip input:focus-visible + span {
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
   }
 
   /* ---- 授業詳細ページ ---- */
-  .back-link { max-width: 800px; margin: 0 auto 1rem; }
-  .back-link a { color: var(--text-2); font-size: 0.875rem; font-weight: 500; }
-  .back-link a:hover { color: var(--text); }
+  /* パンくず：深い階層でも現在地と戻り先を画面に残す */
+  .breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0 auto 1.1rem;
+    font-size: 0.85rem;
+    color: var(--text-2);
+  }
+  .breadcrumb a { color: var(--text-2); font-weight: 500; }
+  .breadcrumb a:hover { color: var(--text); text-decoration: underline; }
+  .crumb-sep { color: var(--border-2); }
+  .crumb-current { color: var(--text); font-weight: 600; }
   .subject-detail { max-width: 800px; margin: 0 auto; }
   .subject-detail h1 { font-size: 1.5rem; letter-spacing: -0.01em; margin-bottom: 0.7rem; }
   .detail-meta { display: flex; flex-wrap: wrap; gap: 0.4rem; }
@@ -630,14 +678,6 @@ const css = `
   .rating-stars { color: var(--star); font-size: 1.05rem; letter-spacing: 1px; }
   .rating-count { color: var(--text-2); font-size: 0.85rem; }
   .rating-empty { color: var(--text-2); font-size: 0.9rem; margin-top: 0.85rem; }
-  .badge {
-    background: var(--chip);
-    color: var(--text);
-    padding: 0.32rem 0.8rem;
-    border-radius: var(--radius);
-    font-size: 0.78rem;
-    font-weight: 500;
-  }
   .detail-section {
     max-width: 800px;
     margin: 1rem auto 0;
@@ -672,7 +712,7 @@ const css = `
     font-family: inherit;
     color: var(--text);
     background-color: var(--surface);
-    border: 1px solid var(--border-2);
+    border: 1px solid var(--control-border);
     border-radius: var(--radius);
     cursor: pointer;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23888' d='M6 8 0 0h12z'/%3E%3C/svg%3E");
@@ -685,10 +725,37 @@ const css = `
   .btn-sm { height: 34px; padding: 0 1rem; font-size: 0.82rem; }
   .detail-text { margin: 0; }
   .detail-text a { color: var(--accent); font-weight: 500; margin-left: 0.4rem; }
-  .slot-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
-  .slot-item { background: var(--chip); border-radius: 8px; padding: 0.45rem 0.9rem; font-size: 0.9rem; font-weight: 500; }
+  /* 授業の情報：属性はラベル付きの項目として並べる（読むだけの表示なので枠やボタン風の見た目は付けない） */
+  .info-about { margin-bottom: 1rem; }
+  .info-list { margin: 0; border-top: 1px solid var(--border); }
+  .info-row {
+    display: grid;
+    grid-template-columns: 6.5rem 1fr;
+    gap: 0.75rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .info-row dt { font-size: 0.85rem; font-weight: 600; color: var(--text-2); }
+  .info-row dd { margin: 0; font-size: 0.92rem; color: var(--text); }
+  /* タグはリンク（押すとそのタグの授業一覧が開く）。押せることが分かるようアクセント色＋下線 */
+  .tag-links { display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; }
+  .tag-link { color: var(--accent); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+  .tag-link:hover { text-decoration-color: var(--accent); }
   .review-list { display: flex; flex-direction: column; gap: 0.75rem; }
   .review-item { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1.05rem; }
+  /* 自分のレビューは左端の帯で示す（状態を見た目で表す） */
+  .review-item.is-mine { border-left: 3px solid var(--accent); }
+  .review-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+  .review-meta { display: flex; align-items: center; gap: 0.6rem; }
+  .review-mine {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--radius);
+  }
+  .review-date { font-size: 0.8rem; color: var(--text-2); }
   .review-score { color: var(--star); font-size: 0.95rem; letter-spacing: 2px; }
   .review-score-num { color: var(--text-2); font-size: 0.82rem; margin-left: 0.5rem; letter-spacing: normal; }
   .review-comment { margin: 0.4rem 0 0; white-space: pre-wrap; }
@@ -704,35 +771,39 @@ const css = `
     font-weight: 500;
     color: var(--text-2);
     background: var(--chip);
-    border: 1px solid var(--border-2);
+    border: 1px solid var(--control-border);
     border-radius: var(--radius);
     transition: color 0.15s, border-color 0.15s;
   }
   .edit-link:hover { color: var(--accent); border-color: var(--accent); }
-  /* 削除：自分のレビュー管理なので既定は編集と同じ中立グレー。破壊的操作なのでホバーで赤く警告 */
-  .delete-form { display: inline-flex; margin: 0; }
-  .delete-btn {
-    display: inline-flex;
-    align-items: center;
-    height: 30px;
-    padding: 0 0.9rem;
-    font-size: 0.78rem;
-    font-weight: 500;
+  /* 破壊的な操作は日常の操作から離し、ページ末尾の赤枠にまとめる */
+  .danger-zone {
+    max-width: 620px;
+    margin: 2.5rem auto 0;
+    padding: 1.1rem 1.25rem;
+    border: 1px solid color-mix(in srgb, #d93025 40%, var(--border));
+    border-radius: var(--radius);
+    background: color-mix(in srgb, #d93025 4%, var(--surface));
+  }
+  .danger-zone h2 { font-size: 0.95rem; margin-bottom: 0.35rem; color: #d93025; }
+  .danger-zone p { margin: 0 0 0.9rem; font-size: 0.85rem; color: var(--text-2); }
+  .danger-zone form { margin: 0; }
+  .btn-danger {
+    height: 38px;
+    padding: 0 1.1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
     font-family: inherit;
-    color: var(--text-2);
-    background: var(--chip);
-    border: 1px solid var(--border-2);
+    color: #ffffff;
+    background: #d93025;
+    border: none;
     border-radius: var(--radius);
     cursor: pointer;
-    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    transition: opacity 0.15s;
   }
-  .delete-btn:hover {
-    color: #d93025;
-    border-color: color-mix(in srgb, #d93025 45%, var(--border-2));
-    background: color-mix(in srgb, #d93025 7%, transparent);
-  }
-  :root:not([data-theme="light"]) .delete-btn:hover { color: #ff6b5e; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .delete-btn:hover { color: #ff6b5e; } }
+  .btn-danger:hover { opacity: 0.9; }
+  :root:not([data-theme="light"]) .danger-zone h2 { color: #ff6b5e; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .danger-zone h2 { color: #ff6b5e; } }
   .report-link {
     display: inline-flex;
     align-items: center;
@@ -777,9 +848,45 @@ const css = `
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .field-error { color: #ff6b5e; } }
 
   /* ---- レスポンシブ ---- */
+  /* ---- アニメーション（状態の変化を伝えるためだけに使う。短く、透明度と位置だけを動かす） ---- */
+  :root { --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1); }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes rise-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  @keyframes pop-in { from { opacity: 0; transform: translateY(8px) scale(0.97); } to { opacity: 1; transform: none; } }
+  @keyframes slide-from-right { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+  @keyframes slide-from-left { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+
+  /* 注意事項モーダル：背景が暗くなり、カードが少し持ち上がって現れる。ページ送りは進む向きにスライド */
+  .notice-overlay:not([hidden]) { animation: fade-in 0.2s ease-out; }
+  .notice-overlay:not([hidden]) .notice-card { animation: pop-in 0.24s var(--ease-out); }
+  .notice-overlay[data-dir="next"] .notice-page:not([hidden]) { animation: slide-from-right 0.22s var(--ease-out); }
+  .notice-overlay[data-dir="prev"] .notice-page:not([hidden]) { animation: slide-from-left 0.22s var(--ease-out); }
+
+  /* タグ欄を開いたとき、中身が上から軽く下りてくる */
+  .tag-filter[open] > :not(summary) { animation: rise-in 0.2s var(--ease-out); }
+
+  /* 検索候補が出るとき */
+  .suggest-list:not(:empty) { animation: rise-in 0.15s var(--ease-out); }
+
+  /* 押した手応え */
+  .tag-chip:active span { transform: scale(0.96); }
+  .edit-link:active, .report-link:active, .btn-danger:active, .notice-arrow:active { transform: translateY(1px); }
+
+  /* OSで「動きを減らす」を設定している人には、アニメーションを止める */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
   @media (max-width: 600px) {
     .search-row { flex-direction: column; }
     .search-row .btn { width: 100%; }
     .site-nav a { padding: 0.45rem 0.55rem; }
+    .tag-row { grid-template-columns: 1fr; gap: 0.35rem; }
+    .info-row { grid-template-columns: 1fr; gap: 0.15rem; }
+    .tag-row-label { padding-top: 0; }
   }
 `

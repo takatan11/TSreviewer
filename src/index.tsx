@@ -1,37 +1,72 @@
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { Layout } from './components/Layout.js'
+import { Breadcrumb } from './components/Breadcrumb.js'
 import {supabase} from './db/index.js'
 import{html} from 'hono/html'
 import { csrf } from 'hono/csrf'
 import{createClientForRequest} from './db/server.js'
 const app = new Hono()
 
-const ALLOWED_TAGS = [
-  "面白い", "つまらない", "楽単", "普通", "難しい",
-  "先生優しい", "先生厳しい", "出席なし", "出席あり",
-  "課題多い", "課題なし", "テストなし", "テストのみ",
-  "レポートのみ", "必修",
-] as const  //タグの管理をまとめている。
+//タグの一覧。「何についてのタグか」でグループ（行）に分けている。タグを足し引きするときはここだけ直す
+const TAG_GROUPS=[
+  {label:"難易度",tags:["楽単","普通","難しい"]},
+  {label:"課題",tags:["課題なし","課題多い"]},
+  {label:"出席",tags:["出席なし","出席あり"]},
+  {label:"評価方法",tags:["テストなし","テストのみ","レポートのみ"]},
+  {label:"先生",tags:["先生優しい","先生厳しい"]},
+  {label:"雰囲気",tags:["面白い","つまらない"]},
+  {label:"区分",tags:["必修"]},
+] as const;
+const ALLOWED_TAGS=TAG_GROUPS.flatMap((group)=>group.tags);//POSTのときの許可リスト。TAG_GROUPSから作っている
 
-// 通報理由の定型リスト。通報フォームの<option>と、POST /report の許可リスト照合の両方でこの配列を使う
-const ALLOWED_REPORT_REASONS = [
-  "誹謗中傷", "個人情報", "虚偽の情報", "スパム", "その他",
-] as const
+const TagGroups=(props:{selected?:readonly string[]})=>(
+  <>
+    <div class="tag-groups">
+      {TAG_GROUPS.map((group) => (
+        <div class="tag-row">
+          <span class="tag-row-label">{group.label}</span>
+          <div class="tag-group" data-exclusive>
+            {group.tags.map((tag) => (
+              <label class="tag-chip"><input type="checkbox" name="tags" value={tag} checked={props.selected?.includes(tag) ?? false} /><span>{tag}</span></label>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+    {html`
+      <script>
+      document.querySelectorAll(".tag-group[data-exclusive]").forEach((group)=>{
+        group.addEventListener("change",(e)=>{
+          const picked=e.target;
+          if(!picked||picked.name!=="tags"||!picked.checked){
+            return;
+          }
+          group.querySelectorAll('input[name="tags"]').forEach((other)=>{
+            if(other!==picked){
+              other.checked=false;
+            }
+          });
+        });
+      });//同じ行のタグは1つまで。1つ選んだら同じ行のほかのタグを外す
+      </script>
+    `}
+  </>
+)//タグ選択の部品。検索欄と授業登録の両方で使う。行ごとにグループ名とタグを並べる
 
-// ★★★ 要差し替え：専用Gmailを取得したら、このアドレスを実アドレスに変える（ここ1か所だけ）★★★
-const CONTACT_EMAIL = "your-contact-address@gmail.com"
+const ALLOWED_REPORT_REASONS=["誹謗中傷","個人情報","虚偽の情報","スパム","その他"] as const;//通報理由。通報フォームの選択肢とPOSTの許可リストの両方で使う
 
-// CSRF対策: 状態を変えるPOSTはOrigin/Refererを検証する
-app.use('*', csrf())
+const CONTACT_EMAIL="your-contact-address@gmail.com";//★要差し替え★ 専用Gmailを取得したらここを実アドレスに変える
 
-async function getCurrentUser(c: any) {
-  const { data } = await createClientForRequest(c).auth.getUser()
-  return data.user
-}
+app.use("*",csrf());//CSRF対策。状態を変えるPOSTはOrigin/Refererを検証する
+
+async function getCurrentUser(c:any){
+  const {data}=await createClientForRequest(c).auth.getUser();
+  return data.user;
+}//ログイン中のユーザーを返す。ログインしていなければnull
 
 app.get('/', async(c) => {
-  const user = await getCurrentUser(c)
+  const user=await getCurrentUser(c);
   const keyword = c.req.query('q') ?? ''  ;
   const faculty=c.req.query('faculty') ?? '';
   const department=c.req.query('department') ?? '';
@@ -50,9 +85,12 @@ app.get('/', async(c) => {
   if(department){
     courseQuery=courseQuery.eq('depart',department);//学科検索
   }
-  if(selectedTags.length){
-    courseQuery=courseQuery.contains('tags',selectedTags);
-  }
+  for(const group of TAG_GROUPS){
+    const picked=selectedTags.filter((t)=>(group.tags as readonly string[]).includes(t));
+    if(picked.length){
+      courseQuery=courseQuery.overlaps("tags",picked);
+    }
+  }//タグ検索。同じ行の中はどれか1つ、違う行どうしはすべてに当てはまる授業に絞る
   const{data:courses,error:readError}=await courseQuery;
     if(readError){
     console.error("読み取り失敗!!", readError);
@@ -73,12 +111,13 @@ app.get('/', async(c) => {
           <div class="filter-row">
             <select id="faculty-select" class="search-control" name="faculty">
               <option value="" disabled selected hidden>学部を選択</option>
-              <option value="工学部">工学部</option>
               <option value="教育学部">教育学部</option>
-              <option value="応用生物学部">応用生物学部</option>
-              <option value="農学部">農学部</option>
+              <option value="地域科学部">地域科学部</option>
               <option value="医学部">医学部</option>
-              <option value="全学共通">全学共通</option>
+              <option value="工学部">工学部</option>
+              <option value="応用生物学部">応用生物学部</option>
+              <option value="社会システム経営学環">社会システム経営学環</option>
+              <option value="全学共通教育">全学共通教育</option>
             </select>
             <select id='department-select' class="search-control" name="department">
               <option value="" disabled selected hidden>学科を選択</option>
@@ -86,44 +125,49 @@ app.get('/', async(c) => {
               <option value="応用生物学科">応用生物学科</option>
               <option value="機械工学科">機械工学科</option>
               <option value="医学科">医学科</option>
-              <option value="全学共通">全学共通</option>
+              <option value="全学共通教育">全学共通教育</option>
             </select>
-            <button type='button' id='show-all'>すべての授業</button>
           </div>
-          <div class="tag-field">
-            <span class="tag-field-label">タグで絞り込み（選んだタグを全部持つ授業）</span>
-            <div class="tag-group">
-              {ALLOWED_TAGS.map((tag) => (
-                <label class="tag-chip"><input type="checkbox" name="tags" value={tag} checked={selectedTags.includes(tag)} /><span>{tag}</span></label>
-              ))}
-            </div>
-          </div>
+          {/* タグ欄。選択中のタグがあれば開いた状態で表示 */}
+          <details class="tag-filter" open={selectedTags.length > 0}>
+            <summary class="tag-filter-summary">
+              タグで絞り込み
+              {selectedTags.length > 0 && <span class="tag-filter-count">{selectedTags.length}件選択中</span>}
+            </summary>
+            <p class="tag-filter-hint">各行から1つまで選べます（もう一度押すと外れます）。選んだタグすべてに当てはまる授業に絞り込みます。</p>
+            <TagGroups selected={selectedTags} />
+          </details>
         </form>
       </section>
 
-      <div id='class-list' class='course-list'></div>
-      {(keyword || faculty || department||selectedTags.length>0) && (
-        courses && courses.length > 0 ? (
-          <div class="course-list">
-            {courses.map((course) => (
-              <a href={`/subject/${encodeURIComponent(course.class_name)}`} class="course-card">
-                <div class="thumb">
-                  <div class="thumb-title">{course.class_name}</div>
-                  <div class="thumb-meta">{[course.faculty, course.depart].filter(Boolean).join(' · ')}</div>
-                </div>
-              </a>
-            ))}
-          </div>
-        ) : (
-          <p class="empty-note">該当する授業が見つかりませんでした。</p>
-        )
+      {/* 授業の一覧。初期表示は全件、検索条件があれば絞り込む */}
+      <div class="list-head">
+        <h2 class="list-heading">
+          {(keyword || faculty || department || selectedTags.length > 0) ? "検索結果" : "すべての授業"}
+          <span class="list-count">{courses?.length ?? 0}件</span>
+        </h2>
+        <a href="/new-class" class="btn btn-sm">＋ 授業を登録</a>
+      </div>
+      {courses && courses.length > 0 ? (
+        <div class="course-list">
+          {courses.map((course) => (
+            <a href={`/subject/${encodeURIComponent(course.class_name)}`} class="course-card">
+              <div class="thumb">
+                <div class="thumb-title">{course.class_name}</div>
+                <div class="thumb-meta">{[course.faculty, course.depart].filter(Boolean).join(' · ')}</div>
+              </div>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <p class="empty-note">
+          {(keyword || faculty || department || selectedTags.length > 0) ? "該当する授業が見つかりませんでした。" : "まだ授業が登録されていません。"}
+        </p>
       )}
       {html`
         <script>
 const input = document.getElementById('search');
 const list = document.getElementById('suggest-list');
-const getall=document.getElementById('show-all');
-const listBox=document.getElementById('class-list');
 let timer;
 
 input.addEventListener('input', () => {
@@ -150,29 +194,6 @@ list.addEventListener('click',(e)=>{
      list.innerHTML='';
 })
 
-getall.addEventListener('click',async (e)=>{
-  const res=await fetch('/allclass');
-  const courses=await res.json();
-  listBox.replaceChildren();
-  for (const course of courses) {
-    const meta=[course.faculty,course.depart].filter(Boolean).join(' · ');
-    const a=document.createElement('a');
-    a.className='course-card';
-    a.href='/subject/'+encodeURIComponent(course.class_name);
-    const thumb=document.createElement('div');
-    thumb.className='thumb';
-    const title=document.createElement('div');
-    title.className='thumb-title';
-    title.textContent=course.class_name;
-    const metaEl=document.createElement('div');
-    metaEl.className='thumb-meta';
-    metaEl.textContent=meta;
-    thumb.appendChild(title);
-    thumb.appendChild(metaEl);
-    a.appendChild(thumb);
-    listBox.appendChild(a);
-  }
-})
         </script>
 
       `}
@@ -214,124 +235,139 @@ app.get('/api/suggest',async(c)=>{//検索のときにサジェストが出る�
 })
 
 
-app.get('/subject/:name',async(c)=>{
-  const user = await getCurrentUser(c)
-  const name = c.req.param('name') //URLの:nameの部分を取り出してname変数に入れている
-  const sort = c.req.query('sort') ?? 'newest';
-  const SORT_OPTIONS: Record<string, { column: string; ascending: boolean }> = {
-  newest:     { column: "created_at", ascending: false }, // 新着順
-  oldest:     { column: "created_at", ascending: true },  // 古い順
-  score_high: { column: "score",      ascending: false }, // 評価が高い順
-  score_low:  { column: "score",      ascending: true },  // 評価が低い順
-}
-  // sort が4キー以外（URL改変など）なら newest に倒す
-  const sortOption = SORT_OPTIONS[sort] ?? SORT_OPTIONS.newest;
-  const { data: subjects, error } = await supabase
-    .from('subject')
-    .select('*')
-    .eq('class_name', name)
-    .order('created_at', { ascending: true })
-    .limit(1);
-  const subject = subjects?.[0];
-  if (error || !subject) return c.text('授業が見つかりません', 404)
+app.get("/subject/:name",async(c)=>{
+  const user=await getCurrentUser(c);
+  const name=c.req.param("name");//URLの:nameの部分を取り出してname変数に入れている
+  const sort=c.req.query("sort") ?? "newest";
+  const SORT_OPTIONS:Record<string,{column:string;ascending:boolean}>={
+    newest:{column:"created_at",ascending:false},//新着順
+    oldest:{column:"created_at",ascending:true},//古い順
+    score_high:{column:"score",ascending:false},//評価が高い順
+    score_low:{column:"score",ascending:true},//評価が低い順
+  };
+  const sortOption=SORT_OPTIONS[sort] ?? SORT_OPTIONS.newest;//4つ以外（URL改変など）なら新着順にする
+  const {data:subjects,error}=await supabase
+  .from("subject")
+  .select("*")
+  .eq("class_name",name)
+  .order("created_at",{ascending:true})
+  .limit(1);
+  const subject=subjects?.[0];
+  if(error||!subject){
+    return c.text("授業が見つかりません",404);
+  }
 
   const [{data:slots},{data:reviews}]=await Promise.all([
-    supabase.from('subject_slot')
-            .select('day,period')
-            .eq('subject_id', subject.id,),
+    supabase
+    .from("subject_slot")
+    .select("day,period")
+    .eq("subject_id",subject.id),
+    supabase
+    .from("review")
+    .select("comment,score,created_at,id,user_id")
+    .eq("subject_id",subject.id)
+    .order(sortOption.column,{ascending:sortOption.ascending}),
+  ]);//開講コマとレビューを同時に取ってくる
 
-    supabase.from('review')
-            .select('comment, score, created_at, id, user_id')
-            .eq('subject_id', subject.id)
-            .order(sortOption.column, { ascending: sortOption.ascending }),
-]);
-
-  const slotList = slots ?? [];
-  const reviewList = reviews ?? [];
-  // レビューが0件なら平均なし(null)、1件以上なら score の平均
-  const avgScore = reviewList.length === 0
-    ? null
-    : reviewList.reduce((acc, r) => acc + (Number(r.score) || 0), 0) / reviewList.length;
+  const slotList=slots ?? [];
+  const reviewList=reviews ?? [];
+  const avgScore=reviewList.length===0 ? null : reviewList.reduce((acc,r)=>acc+(Number(r.score)||0),0)/reviewList.length;//レビューが0件なら平均なし(null)
+  const myReview=user ? reviewList.find((r)=>r.user_id===user.id) : undefined;//自分のレビュー。「レビューを書く」ボタンの文字を変えるのに使う
+  const subjectTags:string[]=Array.isArray(subject.tags) ? subject.tags : [];
+  const slotText=slotList.map((slot)=>`${slot.day} ${slot.period}限`).join("、");
+  const formatDate=(iso:string)=>new Date(iso).toLocaleDateString("ja-JP");//投稿日の表示用（2026/10/14の形）
 
   return c.html(
     <Layout title={subject.class_name} user={user}>
-      <p class="back-link"><a href="/">← ホームに戻る</a></p>
+      <Breadcrumb items={[{ label: "ホーム", href: "/" }, { label: subject.class_name }]} />
 
       <div class="subject-detail">
         <h1>{subject.class_name}</h1>
-        <div class="detail-meta">
-          {subject.faculty  && <span class="badge">{subject.faculty}</span>}
-          {subject.depart   && <span class="badge">{subject.depart}</span>}
-          {subject.semester && <span class="badge">{subject.semester}</span>}
-          {subject.point    && <span class="badge">{subject.point}単位</span>}
-        </div>
         {avgScore === null ? (
           <p class="rating-empty">まだ評価がありません</p>
         ) : (
           <div class="rating-summary">
             <span class="rating-score">{avgScore.toFixed(1)}</span>
-            <span class="rating-stars">{'★'.repeat(Math.round(avgScore))}{'☆'.repeat(5 - Math.round(avgScore))}</span>
+            <span class="rating-stars">{"★".repeat(Math.round(avgScore))}{"☆".repeat(5 - Math.round(avgScore))}</span>
             <span class="rating-count">{reviewList.length}件のレビュー</span>
           </div>
         )}
       </div>
 
+      {/* 授業の情報（学部・学科などをラベル付きで並べる） */}
       <section class="detail-section">
-        <h2>授業概要</h2>
-        <p class="detail-text">{subject.class_about || '概要は登録されていません。'}</p>
+        <h2>授業の情報</h2>
+        <p class="detail-text info-about">{subject.class_about || "概要は登録されていません。"}</p>
+        <dl class="info-list">
+          <div class="info-row"><dt>学部</dt><dd>{subject.faculty || "—"}</dd></div>
+          <div class="info-row"><dt>学科</dt><dd>{subject.depart || "—"}</dd></div>
+          <div class="info-row"><dt>開講時期</dt><dd>{subject.semester || "—"}</dd></div>
+          <div class="info-row"><dt>単位数</dt><dd>{subject.point ? `${subject.point}単位` : "—"}</dd></div>
+          <div class="info-row"><dt>開講コマ</dt><dd>{slotText || "登録されていません"}</dd></div>
+          <div class="info-row">
+            <dt>タグ</dt>
+            <dd>
+              {/* タグを押すとそのタグで絞り込んだホームが開く */}
+              {subjectTags.length > 0 ? (
+                <span class="tag-links">
+                  {subjectTags.map((tag) => (
+                    <a href={`/?tags=${encodeURIComponent(tag)}`} class="tag-link">{tag}</a>
+                  ))}
+                </span>
+              ) : "なし"}
+            </dd>
+          </div>
+        </dl>
       </section>
 
-      <section class="detail-section">
-        <h2>開講コマ</h2>
-        {slotList.length > 0 ? (
-          <ul class="slot-list">
-            {slotList.map((slot) => (
-              <li class="slot-item">{slot.day} {slot.period}限</li>
-            ))}
-          </ul>
-        ) : (
-          <p class="detail-text">開講コマは登録されていません。</p>
-        )}
-      </section>
       <section class="detail-section">
         <div class="detail-section-head">
           <h2>レビュー（{reviewList.length}件）</h2>
           <div class="head-controls">
             <form method='get' action={`/subject/${encodeURIComponent(subject.class_name)}`}>
-              <select name="sort" class="sort-select" onchange="this.form.submit()">
-                <option value="newest" selected={sort === 'newest'}>新しい順</option>
-                <option value="oldest" selected={sort === 'oldest'}>古い順</option>
-                <option value="score_high" selected={sort === 'score_high'}>スコアが高い順</option>
-                <option value="score_low" selected={sort === 'score_low'}>スコアが低い順</option>
+              <select name="sort" class="sort-select" onchange="this.form.submit()" aria-label="並び順">
+                <option value="newest" selected={sort === "newest"}>新しい順</option>
+                <option value="oldest" selected={sort === "oldest"}>古い順</option>
+                <option value="score_high" selected={sort === "score_high"}>スコアが高い順</option>
+                <option value="score_low" selected={sort === "score_low"}>スコアが低い順</option>
               </select>
             </form>
-            <a href={`/new-review?subject_id=${subject.id}`} class="btn btn-sm">レビューを書く</a>
+            {/* 未ログイン・書いたことがある・まだ書いていない、でボタンの文字と行き先を変える */}
+            {!user ? (
+              <a href="/login" class="btn btn-sm">ログインしてレビューを書く</a>
+            ) : myReview ? (
+              <a href={`/edit-review?subject_id=${subject.id}`} class="btn btn-sm">自分のレビューを編集</a>
+            ) : (
+              <a href={`/new-review?subject_id=${subject.id}`} class="btn btn-sm">レビューを書く</a>
+            )}
           </div>
         </div>
         {reviewList.length > 0 ? (
           <div class="review-list">
-            {reviewList.map((review) => (
-              <div class="review-item">
-                <div class="review-score">
-                  {'★'.repeat(Math.max(0,Math.min(5,Number(review.score)||0)))}
-                  <span class="review-score-num">{review.score}</span>
+            {reviewList.map((review) => {
+              const mine=user&&review.user_id===user.id;//自分のレビューかどうか
+              return (
+                <div class={mine ? "review-item is-mine" : "review-item"}>
+                  <div class="review-head">
+                    <div class="review-score">
+                      {"★".repeat(Math.max(0,Math.min(5,Number(review.score)||0)))}
+                      <span class="review-score-num">{review.score}</span>
+                    </div>
+                    <div class="review-meta">
+                      {mine && <span class="review-mine">あなたのレビュー</span>}
+                      <span class="review-date">{formatDate(review.created_at)}</span>
+                    </div>
+                  </div>
+                  <p class="review-comment">{review.comment}</p>
+                  <div class="review-foot">
+                    {mine && (
+                      <a href={`/edit-review?subject_id=${subject.id}`} class="edit-link">編集</a>
+                    )}
+                    <a href={`/report?target_type=review&target_id=${review.id}`} class="report-link">通報</a>
+                  </div>
                 </div>
-                <p class="review-comment">{review.comment}</p>
-                <div class="review-foot">
-                  {user && review.user_id === user.id && (
-                    <a href={`/edit-review?subject_id=${subject.id}`} class="edit-link">編集</a>
-                  )}
-                  {user && review.user_id === user.id && (
-                    <form method="post" action="/delete-review" class="delete-form" onsubmit="return confirm('このレビューを削除しますか？')">
-                      <input type="hidden" name="review_id" value={review.id} />
-                      <input type="hidden" name="subject_name" value={subject.class_name} />
-                      <button type="submit" class="delete-btn">削除</button>
-                    </form>
-                  )}
-                  <a href={`/report?target_type=review&target_id=${review.id}`} class="report-link">通報</a>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           <p class="detail-text">まだレビューがありません。</p>
@@ -343,14 +379,17 @@ app.get('/subject/:name',async(c)=>{
       </p>
     </Layout>
   )
-})//検索したカードをクリックしたときの授業詳細ページ。概要・開講コマ・レビュー一覧を表示
+})//検索したカードをクリックしたときの授業詳細ページ。授業の情報とレビュー一覧を表示
 
 
 app.get('/new-class',async(c)=>{
-  const user = await getCurrentUser(c)
-  if (!user) return c.redirect('/login')
+  const user=await getCurrentUser(c);
+  if(!user){
+    return c.redirect("/login");
+  }
   return c.html(
     <Layout title='新しい授業の登録' user={user}>
+      <Breadcrumb maxWidth={620} items={[{ label: "ホーム", href: "/" }, { label: "授業を登録" }]} />
       <h1>新しく授業を登録する</h1>
       <form class="new-class" method="post" action="/new-class" id="new-class">
         <div class="new-class">
@@ -385,12 +424,13 @@ app.get('/new-class',async(c)=>{
         <div>
           <label for="faculty">学部</label>
             <select id='faculty' name='faculty'>
-                <option>工学部</option>
                 <option>教育学部</option>
-                <option>応用生物学部</option>
-                <option>農学部</option>
+                <option>地域科学部</option>
                 <option>医学部</option>
-                <option>全学共通</option>
+                <option>工学部</option>
+                <option>応用生物学部</option>
+                <option>社会システム経営学環</option>
+                <option>全学共通教育</option>
             </select>
         </div>
         <div>
@@ -400,7 +440,7 @@ app.get('/new-class',async(c)=>{
               <option>応用生物学科</option>
               <option>機械工学科</option>
               <option>医学科</option>
-              <option>全学共通</option>
+              <option>全学共通教育</option>
            </select>
         </div>
         <div>
@@ -424,13 +464,9 @@ app.get('/new-class',async(c)=>{
         </div>
 
         <div class="tag-field">
-          <span class="tag-field-label">タグ（当てはまるものを選んでください・複数可）</span>
-          <div class="tag-group">
-            {/* ボタンは ALLOWED_TAGS から生成。タグを足し引きするときは配列だけ直せばよい */}
-            {ALLOWED_TAGS.map((tag) => (
-              <label class="tag-chip"><input type="checkbox" name="tags" value={tag} /><span>{tag}</span></label>
-            ))}
-          </div>
+          <span class="tag-field-label">タグ（当てはまるものを各行から1つまで・もう一度押すと外れます）</span>
+          {/* タグはTAG_GROUPSから作る */}
+          <TagGroups />
         </div>
         <button type='submit' class="button">登録</button>
       </form>
@@ -463,8 +499,10 @@ app.get('/new-class',async(c)=>{
 
 
 app.post('/new-class', async (c) => {
-  const user = await getCurrentUser(c)
-  if (!user) return c.redirect('/login')
+  const user=await getCurrentUser(c);
+  if(!user){
+    return c.redirect("/login");
+  }
   const body = await c.req.parseBody({all:true});
   const value=String(body.class_name).trim();
   const about=String(body.class_about).trim();
@@ -561,7 +599,7 @@ app.post('/new-class', async (c) => {
 
 
 app.get('/appriciate',async(c)=>{
-  const user = await getCurrentUser(c)
+  const user=await getCurrentUser(c);
   const random=Math.floor(Math.random()*7)//整数０から６までランダムに出す
   const message=[
     "後輩たちの手助けになりましたよ！",
@@ -584,11 +622,12 @@ app.get('/appriciate',async(c)=>{
 })//登録のお礼が出る画面
 
 
-app.get('/contact', async (c) => {
-  const user = await getCurrentUser(c)
-  const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('【単位の地図】お問い合わせ')}`
+app.get("/contact",async(c)=>{
+  const user=await getCurrentUser(c);
+  const mailto=`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("【単位の地図】お問い合わせ")}`;//件名を最初から入れておく
   return c.html(
     <Layout title="お問い合わせ" user={user}>
+      <Breadcrumb maxWidth={620} items={[{ label: "ホーム", href: "/" }, { label: "お問い合わせ" }]} />
       <div class="contact-page">
         <h1>お問い合わせ</h1>
         <p class="contact-lead">
@@ -612,17 +651,17 @@ app.get('/contact', async (c) => {
           </ul>
         </section>
 
-        <p class="back-link"><a href="/">← ホームに戻る</a></p>
       </div>
     </Layout>
   )
-})//お問い合わせ（静的な連絡先ページ。mailtoのみ・DB保存なし）
+})//お問い合わせのページ。メールアドレスを載せるだけで、DBには保存しない
 
 
-app.get('/privacy', async (c) => {
-  const user = await getCurrentUser(c)
+app.get("/privacy",async(c)=>{
+  const user=await getCurrentUser(c);
   return c.html(
     <Layout title="プライバシーポリシー" user={user}>
+      <Breadcrumb maxWidth={720} items={[{ label: "ホーム", href: "/" }, { label: "プライバシーポリシー" }]} />
       <div class="legal-page">
         <h1>プライバシーポリシー</h1>
         <p class="legal-updated">施行日：【2026年10月26日】</p>
@@ -689,17 +728,17 @@ app.get('/privacy', async (c) => {
           <p>本ポリシーに関するお問い合わせ、ならびに個人情報の開示・訂正・削除・利用停止等のご請求は、<a href="/contact" class="legal-inline-link">お問い合わせページ</a>またはメール（{CONTACT_EMAIL}）までご連絡ください。</p>
         </section>
 
-        <p class="back-link"><a href="/">← ホームに戻る</a></p>
       </div>
     </Layout>
   )
-})//プライバシーポリシー
+})//プライバシーポリシーのページ
 
 
-app.get('/help', async (c) => {
-  const user = await getCurrentUser(c)
+app.get("/help",async(c)=>{
+  const user=await getCurrentUser(c);
   return c.html(
     <Layout title="ヘルプ" user={user}>
+      <Breadcrumb maxWidth={720} items={[{ label: "ホーム", href: "/" }, { label: "ヘルプ" }]} />
       <div class="legal-page">
         <h1>ヘルプ</h1>
         <p class="legal-lead">「単位の地図」の使い方と、よくある質問をまとめています。</p>
@@ -707,10 +746,10 @@ app.get('/help', async (c) => {
         <section class="legal-section">
           <h2>使い方</h2>
           <ul>
-            <li><strong>授業を探す</strong>：ホームの検索から、授業名・学部・学科・タグで絞り込めます。「すべての授業」ボタンで一覧も見られます。</li>
+            <li><strong>授業を探す</strong>：ホームには登録済みの授業がすべて並びます。検索欄・学部・学科・タグで絞り込めます。</li>
             <li><strong>レビューを書く</strong>：ログイン後、授業ページの「レビューを書く」から、評価点・出席・感想を投稿できます。</li>
             <li><strong>レビューを編集・削除する</strong>：自分のレビューには「編集」「削除」ボタンが表示されます。</li>
-            <li><strong>授業を登録する</strong>：検索して見つからない授業は、「授業を登録」から追加できます。タグも付けられます。</li>
+            <li><strong>授業を登録する</strong>：検索して見つからない授業は、ホームの「＋ 授業を登録」から追加できます。タグも付けられます。</li>
           </ul>
         </section>
 
@@ -731,17 +770,18 @@ app.get('/help', async (c) => {
           <p><a href="/contact" class="legal-inline-link">お問い合わせページ</a>からご連絡ください。</p>
         </section>
 
-        <p class="back-link"><a href="/">← ホームに戻る</a></p>
       </div>
     </Layout>
   )
-})//ヘルプ（使い方・FAQの静的ページ・テンプレート）
+})//ヘルプのページ。使い方とよくある質問
 
 
 
 app.get('/new-review',async(c)=>{
-  const user = await getCurrentUser(c)
-  if (!user) return c.redirect('/login')
+  const user=await getCurrentUser(c);
+  if(!user){
+    return c.redirect("/login");
+  }
   const classid=c.req.query('subject_id');
 const {data,error:userError}=await supabase
 .from("review")
@@ -755,8 +795,15 @@ if(userError){
   console.error("レビュー確認に失敗",userError);
   return c.text("読み込みに失敗しました。時間をおいて再度お試しください。",500);
 }
+  const {data:subject}=await supabase
+  .from("subject")
+  .select("class_name")
+  .eq("id",classid)
+  .maybeSingle();
+  const subjectName=subject?.class_name ?? "";//パンくずに出す授業名
   return c.html(
     <Layout title="レビュー登録" user={user}>
+      <Breadcrumb maxWidth={620} items={[{ label: "ホーム", href: "/" }, { label: subjectName, href: `/subject/${encodeURIComponent(subjectName)}` }, { label: "レビューを書く" }]} />
       <h1>レビュー登録</h1>
       <form class="form-card" id="form-card" method="post" action="/new-review">
         <div class="form-group">
@@ -806,20 +853,30 @@ if(userError){
 });//レビューの入力ページ
 
 
-app.get('/edit-review', async (c) => {
-  const user = await getCurrentUser(c)
-  if (!user) return c.redirect('/login')
-  const classid = c.req.query('subject_id')
-  // ↓ここは仮のデータ取得（ロジックなので確認を）。自分のレビューを owner-scoped で取得、無ければ新規作成へ
-  const { data: review } = await supabase
-    .from('review')
-    .select('comment, score, attendance, subject_id')
-    .eq('subject_id', classid)
-    .eq('user_id', user.id)
-    .maybeSingle()
-  if (!review) return c.redirect(`/new-review?subject_id=${classid}`)
+app.get("/edit-review",async(c)=>{
+  const user=await getCurrentUser(c);
+  if(!user){
+    return c.redirect("/login");
+  }
+  const classid=c.req.query("subject_id");
+  const {data:review}=await supabase
+  .from("review")
+  .select("id,comment,score,attendance,subject_id")
+  .eq("subject_id",classid)
+  .eq("user_id",user.id)
+  .maybeSingle();//自分のレビューだけを取ってくる
+  if(!review){
+    return c.redirect(`/new-review?subject_id=${classid}`);
+  }//まだ書いていなければ新規作成のページへ
+  const {data:subject}=await supabase
+  .from("subject")
+  .select("class_name")
+  .eq("id",review.subject_id)
+  .maybeSingle();
+  const subjectName=subject?.class_name ?? "";//パンくずと削除後の戻り先に使う授業名
   return c.html(
     <Layout title="レビュー編集" user={user}>
+      <Breadcrumb maxWidth={620} items={[{ label: "ホーム", href: "/" }, { label: subjectName, href: `/subject/${encodeURIComponent(subjectName)}` }, { label: "レビュー編集" }]} />
       <h1>レビュー編集</h1>
       <form class="form-card" id="form-card" method="post" action="/new-review">
         <div class="form-group">
@@ -849,6 +906,17 @@ app.get('/edit-review', async (c) => {
         <input type="hidden" name="subject_id" value={review.subject_id} />
         <button type="submit" class="btn">更新する</button>
       </form>
+
+      {/* 削除は更新ボタンから離してページの最後に置く */}
+      <section class="danger-zone">
+        <h2>レビューの削除</h2>
+        <p>このレビューを削除します。削除すると元に戻せません。</p>
+        <form method="post" action="/delete-review" onsubmit="return confirm('このレビューを削除しますか？この操作は取り消せません。')">
+          <input type="hidden" name="review_id" value={review.id} />
+          <input type="hidden" name="subject_name" value={subjectName} />
+          <button type="submit" class="btn-danger">このレビューを削除</button>
+        </form>
+      </section>
       {html`
       <script>
       const reviewError=document.getElementById("review-error");
@@ -866,13 +934,15 @@ app.get('/edit-review', async (c) => {
       `}
     </Layout>
   )
-})//既存レビューの編集ページ。初期値を入れたフォームを出し、POST /new-review で更新する
+})//レビューの編集ページ。今の内容を入れたフォームを出し、POST /new-review で更新する。削除もここから
 
 
-app.post('/new-review', async (c) => {
-  const user = await getCurrentUser(c)
-  if (!user) return c.redirect('/login')
-  const body = await c.req.parseBody();
+app.post("/new-review",async(c)=>{
+  const user=await getCurrentUser(c);
+  if(!user){
+    return c.redirect("/login");
+  }
+  const body=await c.req.parseBody();
   const review=String(body.review).trim();
 
   if(review===""||review.length>2000){
@@ -893,15 +963,14 @@ app.post('/new-review', async (c) => {
   const attendance=Number(body.attendance);
   const subjectId=Number(body.subject_id);
 
-  
-  const { data: existing, error: checkError } = await supabase
-    .from('review')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('subject_id', subjectId)
-    .maybeSingle();
-  if (checkError) {
-    console.error('レビュー確認に失敗:', checkError);
+  const {data:existing,error:checkError}=await supabase
+  .from("review")
+  .select("id")
+  .eq("user_id",user.id)
+  .eq("subject_id",subjectId)
+  .maybeSingle();//この授業にもうレビューを書いているか
+  if(checkError){
+    console.error("レビュー確認に失敗",checkError);
     return c.html(
       <Layout title="保存に失敗しました">
         <div class="error-view">
@@ -916,25 +985,23 @@ app.post('/new-review', async (c) => {
     );
   }
 
-  // ③ 既存あり→UPDATE（所有者スコープ：user_id＋subject_idで自分の行だけ）／無し→INSERT
-  let writeError;
-  if (existing) {
-    const { error } = await createClientForRequest(c)
-      .from('review')
-      .update({ comment: body.review as string, score: score, attendance: attendance })
-      .eq('user_id', user.id)
-      .eq('subject_id', subjectId);
-    writeError = error;
-  } else {
-    // レート制限：直近24時間に30件以上レビューしていたら新規投稿を拒否（UPDATEは対象外）
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { count, error: countError } = await supabase
-      .from('review')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .gte('created_at', since);
-    if (countError) {
-      console.error('投稿数の確認に失敗:', countError);
+  let writeError;//UPDATEとINSERTのどちらで失敗しても、ここに入れて最後にまとめて確認する
+  if(existing){
+    const {error}=await createClientForRequest(c)
+    .from("review")
+    .update({comment:body.review as string,score:score,attendance:attendance})
+    .eq("user_id",user.id)
+    .eq("subject_id",subjectId);//自分のレビューだけを書き換える
+    writeError=error;
+  }else{
+    const since=new Date(Date.now()-24*60*60*1000).toISOString();//24時間前の時刻
+    const {count,error:countError}=await supabase
+    .from("review")
+    .select("id",{count:"exact",head:true})
+    .eq("user_id",user.id)
+    .gte("created_at",since);//直近24時間に書いたレビューの数
+    if(countError){
+      console.error("投稿数の確認に失敗",countError);
       return c.html(
         <Layout title="保存に失敗しました">
           <div class="error-view">
@@ -948,7 +1015,7 @@ app.post('/new-review', async (c) => {
         500
       );
     }
-    if ((count ?? 0) >= 30) {
+    if((count ?? 0)>=30){
       return c.html(
         <Layout title="投稿上限に達しました" user={user}>
           <div class="error-view">
@@ -961,15 +1028,15 @@ app.post('/new-review', async (c) => {
         </Layout>,
         429
       );
-    }
-    const { error } = await createClientForRequest(c)
-      .from('review')
-      .insert({ comment: body.review as string, score: score, attendance: attendance, subject_id: subjectId, user_id: user.id });
-    writeError = error;
+    }//24時間で30件まで。超えていたら新しいレビューは書けない
+    const {error}=await createClientForRequest(c)
+    .from("review")
+    .insert({comment:body.review as string,score:score,attendance:attendance,subject_id:subjectId,user_id:user.id});
+    writeError=error;
   }
 
-  if (writeError) {
-    console.error('保存失敗:', writeError);
+  if(writeError){
+    console.error("保存失敗",writeError);
     return c.html(
       <Layout title="保存に失敗しました">
         <div class="error-view">
@@ -983,8 +1050,8 @@ app.post('/new-review', async (c) => {
       500
     );
   }
-  return c.redirect('/appriciate');
-}); //既存あればUPDATE・無ければINSERT。1人1レビューを維持しつつ編集も兼ねる
+  return c.redirect("/appriciate");
+});//レビューの保存。すでに書いていればUPDATE、まだならINSERT（1人1授業1レビュー）
 
 
 app.post("/delete-review",async (c)=>{
@@ -1004,11 +1071,11 @@ app.post("/delete-review",async (c)=>{
     console.error("レビュー削除に失敗",error);
     return c.text("削除に失敗しました。時間をおいて再度お試しください。",500);
   }
-  return c.redirect(`/subject/${encodeURIComponent(String(name))}`)
+  return c.redirect(`/subject/${encodeURIComponent(String(name))}`);//削除したら元の授業のページに戻す
 })
 
 app.get('/login',async(c)=>{
-  const user = await getCurrentUser(c)
+  const user=await getCurrentUser(c);
   return c.html(
     <Layout title="ログイン" user={user}>
       <form method="post" action="/login/auth">
@@ -1115,11 +1182,11 @@ app.post("/login/verify",async(c)=>{
 
 app.get("/report",async(c)=>{
   const user=await getCurrentUser(c);
-  // フォームのhiddenに渡すために読むだけ。ログイン確認・target_type/target_id の検証はここで追加を
-  const targetType=c.req.query('target_type') ?? '';
-  const targetId=c.req.query('target_id') ?? '';
+  const targetType=c.req.query("target_type") ?? "";//フォームのhiddenに入れて、POSTにそのまま渡す
+  const targetId=c.req.query("target_id") ?? "";//※このページではログイン確認と値の検証をまだしていない（POST /report側ではしている）
   return c.html(
     <Layout title="通報" user={user}>
+      <Breadcrumb maxWidth={620} items={[{ label: "ホーム", href: "/" }, { label: "通報" }]} />
       <h1>報告</h1>
       <form class="form-card" method="post" id="report" action="/report">
         <input type="hidden" name="target_type" value={targetType} />
@@ -1136,7 +1203,7 @@ app.get("/report",async(c)=>{
       </form>
     </Layout>
   )
-})
+})//通報のページ。理由を選んでPOST /reportに送る
 
 app.post("/report",async(c)=>{
   const user= await getCurrentUser(c);
@@ -1150,16 +1217,15 @@ app.post("/report",async(c)=>{
   if(!ALLOWED_REPORT_REASONS.includes(body.reason as any)){
     return c.text("不正な操作です",400);
   }
-  // maker_id＝通報された内容の作成者。reviewなら作者user_idをDBから引き、subjectは作者列が無いのでnull
-  let makerId:string|null=null;
+  let makerId:string|null=null;//通報された内容を書いた人。授業には作者の列が無いのでnullのまま
   if(body.target_type==="review"){
     const {data:reviewRow}=await supabase
-      .from("review")
-      .select("user_id")
-      .eq("id",body.target_id)
-      .maybeSingle();
+    .from("review")
+    .select("user_id")
+    .eq("id",body.target_id)
+    .maybeSingle();
     makerId=reviewRow?.user_id ?? null;
-  }
+  }//レビューの通報なら、そのレビューを書いた人のidを取ってくる
 
   const {error}=await createClientForRequest(c)
   .from("report")
