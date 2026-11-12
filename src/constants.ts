@@ -24,4 +24,4 @@ export const ALLOWED_TAGS=TAG_GROUPS.flatMap((group)=>group.tags);//POSTのと�
 
 export const ALLOWED_REPORT_REASONS=["誹謗中傷","個人情報","虚偽の情報","スパム","その他"] as const;//通報理由。通報フォームの選択肢とPOSTの許可リストの両方で使う
 
-export const CONTACT_EMAIL="your-contact-address@gmail.com";//★要差し替え★ 専用Gmailを取得したらここを実アドレスに変える
+export const CONTACT_EMAIL="taninochizu.unei@gmail.com";//お問い合わせ先（運営用Gmail）

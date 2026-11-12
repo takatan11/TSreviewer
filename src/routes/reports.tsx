@@ -65,6 +65,20 @@ reports.post("/report",async(c)=>{
     maker_id:makerId,
   });
 
+  if(error?.code==="23505"){
+    return c.html(
+      <Layout title="通報済みです" user={user}>
+        <div class="error-view">
+          <h1>この内容はすでに通報済みです</h1>
+          <div class="error-card">
+            <p>ご協力ありがとうございます。同じ内容への通報は1人1回までです。</p>
+            <p class="error-detail">いただいた通報は運営が順次確認します。</p>
+          </div>
+          <p><a href="/" class="btn">ホームに戻る</a></p>
+        </div>
+      </Layout>
+    );
+  }//同じ人が同じ内容を2回通報したとき（UNIQUE制約で弾かれたとき）は、エラーではなく通報済みとして知らせる
   if(error){
     console.error("通報の保存に失敗",error);
     return c.text("保存に失敗しました。時間をおいて再度お試しください。",500);
