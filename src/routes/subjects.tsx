@@ -1,12 +1,13 @@
 import { Hono } from 'hono'
 import { Layout } from '../components/Layout.js'
 import { Breadcrumb } from '../components/Breadcrumb.js'
+import { ErrorPage } from '../components/ErrorPage.js'
 import { TagGroups } from '../components/TagGroups.js'
 import {supabase} from '../db/index.js'
 import{html} from 'hono/html'
 import{createClientForRequest} from '../db/server.js'
 import { getCurrentUser } from '../auth.js'
-import { ALLOWED_TAGS, Faculty, Department } from '../constants.js'
+import { ALLOWED_TAGS, Faculty, Department, SEMESTERS, DAYS, PERIODS, POINTS } from '../constants.js'
 
 const subjects=new Hono();
 
@@ -29,7 +30,10 @@ subjects.get("/subject/:name",async(c)=>{
   .limit(1);
   const subject=subjects?.[0];
   if(error||!subject){
-    return c.text("授業が見つかりません",404);
+    return c.html(
+      <ErrorPage title="授業が見つかりません" message="お探しの授業は登録されていないか、削除された可能性があります。" user={user} />,
+      404
+    );
   }
 
   const [{data:slots},{data:reviews}]=await Promise.all([
@@ -180,21 +184,18 @@ subjects.get('/new-class',async(c)=>{
         <div>
           <label for="semester">開講時期</label>
             <select id='semester' name='semester'>
-              <option>前期</option>
-              <option>後期</option>
-              <option>通年</option>
+              {SEMESTERS.map((s)=>(
+                <option value={s}>{s}</option>
+              ))}
             </select>
         </div>
         <div>
           <label for="period">時限</label>
             <select id="period" name='period'>
-              <option value="1">1限</option>
-              <option value="2">2限</option>
-              <option value="3">3限</option>
-              <option value="4">4限</option>
-              <option value="5">5限</option>
-              <option value="6">6限</option>   
-            </select>    
+              {PERIODS.map((p)=>(
+                <option value={p}>{p}限</option>
+              ))}
+            </select>
         </div>
         <div>
           <label for="faculty">学部</label>
@@ -214,20 +215,18 @@ subjects.get('/new-class',async(c)=>{
         <div>
           <label for="days">曜日</label>
             <select id='days' name='days'>
-              <option>月曜日</option>
-              <option>火曜日</option>
-              <option>水曜日</option>
-              <option>木曜日</option>
-              <option>金曜日</option>
-              <option>特別日程</option>
+              {DAYS.map((d)=>(
+                <option value={d}>{d}</option>
+              ))}
             </select>
         </div>
 
         <div>
           <label for="point">単位数</label>
             <select id='point' name='point'>
-              <option>1</option>
-              <option>2</option>
+              {POINTS.map((pt)=>(
+                <option value={pt}>{pt}</option>
+              ))}
             </select>
         </div>
 
@@ -345,10 +344,23 @@ subjects.post('/new-class', async (c) => {
     );
   }
 
+  const semester=String(body.semester ?? "");
+  const day=String(body.days ?? "");
+  const period=String(body.period ?? "");
+  const point=String(body.point ?? "");
+  if(!(SEMESTERS as readonly string[]).includes(semester)||!(DAYS as readonly string[]).includes(day)
+    ||!(PERIODS as readonly string[]).includes(period)||!(POINTS as readonly string[]).includes(point)){
+    console.error("選択肢にない値が送られました:", JSON.stringify({semester,day,period,point}));
+    return c.html(
+      <ErrorPage title="入力内容を確認してください" message="開講時期・曜日・時限・単位数のいずれかが正しくありません。" detail="一覧の中から選んで、もう一度登録してください。" backHref="/new-class" backLabel="登録画面に戻る" user={user} />,
+      400
+    );
+  }//画面の選択肢にない値（画面を通さずに送られたもの）を弾く
+
   const { data: subject, error: subjectError }=await createClientForRequest(c)
     .from('subject')
     .insert({
-      class_name: body.class_name as string,
+      class_name: value,
       semester: body.semester   as string,
       faculty:    body.faculty    as string,
       depart:     body.depart     as string,
@@ -359,18 +371,24 @@ subjects.post('/new-class', async (c) => {
     .select()
     .single();
 
+  if(subjectError?.code==="23505"){
+    return c.html(
+      <Layout title="すでに登録されています" user={user}>
+        <div class="error-view">
+          <h1>この授業はすでに登録されています</h1>
+          <div class="error-card">
+            <p>同じ名前の授業が登録済みです。レビューはそちらのページから書けます。</p>
+          </div>
+          <p><a href={`/subject/${encodeURIComponent(value)}`} class="btn">登録済みの授業を見る</a></p>
+        </div>
+      </Layout>,
+      409
+    );
+  }//授業名はDBでUNIQUEにしてあるので、同名の授業はここで弾かれる
   if (subjectError || !subject) {
     console.error('授業の登録に失敗', subjectError);
     return c.html(
-      <Layout title="登録に失敗しました">
-        <div class="error-view">
-          <h1>授業の登録に失敗しました</h1>
-          <div class="error-card">
-            <p>入力内容を確認して、もう一度お試しください。</p>
-          </div>
-          <p><a href="/new-class" class="btn">登録画面に戻る</a></p>
-        </div>
-      </Layout>,
+      <ErrorPage title="登録に失敗しました" message="入力内容を確認して、もう一度お試しください。" backHref="/new-class" backLabel="登録画面に戻る" user={user} />,
       500
     );
   }//サーバーに入力内容を送信
@@ -386,15 +404,7 @@ subjects.post('/new-class', async (c) => {
   if (slotError) {
     console.error('コマの登録に失敗', slotError);
     return c.html(
-      <Layout title="登録に失敗しました">
-        <div class="error-view">
-          <h1>コマの登録に失敗しました</h1>
-          <div class="error-card">
-            <p>入力内容を確認して、もう一度お試しください。</p>
-          </div>
-          <p><a href="/new-class" class="btn">登録画面に戻る</a></p>
-        </div>
-      </Layout>,
+      <ErrorPage title="コマの登録に失敗しました" message="入力内容を確認して、もう一度お試しください。" backHref="/new-class" backLabel="登録画面に戻る" user={user} />,
       500
     );
   }

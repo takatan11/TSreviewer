@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { Layout } from '../components/Layout.js'
 import { Breadcrumb } from '../components/Breadcrumb.js'
+import { ErrorPage } from '../components/ErrorPage.js'
 import {supabase} from '../db/index.js'
 import{createClientForRequest} from '../db/server.js'
 import { getCurrentUser } from '../auth.js'
@@ -40,10 +41,16 @@ reports.post("/report",async(c)=>{
     return c.redirect("/login");
   }
   if(body.target_type!="review"&&body.target_type!="subject"){
-    return c.text("不正な操作です",400);
+    return c.html(
+      <ErrorPage title="通報できませんでした" message="通報の内容が正しくありません。通報したいレビューや授業のページから、もう一度お試しください。" user={user} />,
+      400
+    );
   }
   if(!ALLOWED_REPORT_REASONS.includes(body.reason as any)){
-    return c.text("不正な操作です",400);
+    return c.html(
+      <ErrorPage title="通報できませんでした" message="通報の内容が正しくありません。通報したいレビューや授業のページから、もう一度お試しください。" user={user} />,
+      400
+    );
   }
   let makerId:string|null=null;//通報された内容を書いた人。授業には作者の列が無いのでnullのまま
   if(body.target_type==="review"){
@@ -52,8 +59,26 @@ reports.post("/report",async(c)=>{
     .select("user_id")
     .eq("id",body.target_id)
     .maybeSingle();
-    makerId=reviewRow?.user_id ?? null;
-  }//レビューの通報なら、そのレビューを書いた人のidを取ってくる
+    if(!reviewRow){
+      return c.html(
+        <ErrorPage title="通報できませんでした" message="通報するレビューが見つかりませんでした。削除された可能性があります。" user={user} />,
+        404
+      );
+    }
+    makerId=reviewRow.user_id ?? null;
+  }else{
+    const {data:subjectRow}=await supabase
+    .from("subject")
+    .select("id")
+    .eq("id",body.target_id)
+    .maybeSingle();
+    if(!subjectRow){
+      return c.html(
+        <ErrorPage title="通報できませんでした" message="通報する授業が見つかりませんでした。削除された可能性があります。" user={user} />,
+        404
+      );
+    }
+  }//通報する対象が本当にあるか確かめる。レビューの通報なら、そのレビューを書いた人のidも取ってくる
 
   const {error}=await createClientForRequest(c)
   .from("report")
@@ -81,9 +106,12 @@ reports.post("/report",async(c)=>{
   }//同じ人が同じ内容を2回通報したとき（UNIQUE制約で弾かれたとき）は、エラーではなく通報済みとして知らせる
   if(error){
     console.error("通報の保存に失敗",error);
-    return c.text("保存に失敗しました。時間をおいて再度お試しください。",500);
+    return c.html(
+      <ErrorPage title="通報に失敗しました" message="時間をおいて、もう一度お試しください。" user={user} />,
+      500
+    );
   }
-  return c.redirect("/");
+  return c.redirect("/appriciate");//通報を受け付けたらお礼のページへ
 })
 
 export default reports;//通報のルート

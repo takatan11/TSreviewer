@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { Layout } from '../components/Layout.js'
 import { Breadcrumb } from '../components/Breadcrumb.js'
+import { ErrorPage } from '../components/ErrorPage.js'
 import {supabase} from '../db/index.js'
 import{html} from 'hono/html'
 import{createClientForRequest} from '../db/server.js'
@@ -8,30 +9,46 @@ import { getCurrentUser } from '../auth.js'
 
 const reviews=new Hono();
 
+async function findSubjectName(id:string){
+  if(!/^\d+$/.test(id)){
+    return null;
+  }
+  const {data}=await supabase
+  .from("subject")
+  .select("class_name")
+  .eq("id",id)
+  .maybeSingle();
+  return data?.class_name ?? null;
+}//授業idから授業名を取ってくる。idが数字でない・授業が存在しないときはnull
+
 reviews.get('/new-review',async(c)=>{
   const user=await getCurrentUser(c);
   if(!user){
     return c.redirect("/login");
   }
-  const classid=c.req.query('subject_id');
-const {data,error:userError}=await supabase
-.from("review")
-.select("user_id,subject_id")
-.eq("user_id",user.id)
-.eq("subject_id",classid);
-if(data&&data.length>0){
-  return c.redirect(`/edit-review?subject_id=${classid}`);
-}
-if(userError){
-  console.error("レビュー確認に失敗",userError);
-  return c.text("読み込みに失敗しました。時間をおいて再度お試しください。",500);
-}
-  const {data:subject}=await supabase
-  .from("subject")
-  .select("class_name")
-  .eq("id",classid)
-  .maybeSingle();
-  const subjectName=subject?.class_name ?? "";//パンくずに出す授業名
+  const classid=c.req.query('subject_id') ?? "";
+  const subjectName=await findSubjectName(classid);//パンくずに出す授業名
+  if(subjectName===null){
+    return c.html(
+      <ErrorPage title="授業が見つかりません" message="レビューを書く授業が見つかりませんでした。授業のページからもう一度お試しください。" user={user} />,
+      404
+    );
+  }//subject_idが無い・数字でない・授業が存在しないときは404
+  const {data,error:userError}=await supabase
+  .from("review")
+  .select("user_id,subject_id")
+  .eq("user_id",user.id)
+  .eq("subject_id",classid);
+  if(userError){
+    console.error("レビュー確認に失敗",userError);
+    return c.html(
+      <ErrorPage title="読み込みに失敗しました" message="時間をおいて、もう一度お試しください。" user={user} />,
+      500
+    );
+  }
+  if(data&&data.length>0){
+    return c.redirect(`/edit-review?subject_id=${classid}`);
+  }//すでに書いていれば編集ページへ
   return c.html(
     <Layout title="レビュー登録" user={user}>
       <Breadcrumb items={[{ label: "ホーム", href: "/" }, { label: subjectName, href: `/subject/${encodeURIComponent(subjectName)}` }, { label: "レビューを書く" }]} />
@@ -190,8 +207,20 @@ reviews.post("/new-review",async(c)=>{
       400
     );
 }
-  const score=Math.max(0,Math.min(5,Number(body.score)));
+  if(await findSubjectName(String(body.subject_id ?? ""))===null){
+    return c.html(
+      <ErrorPage title="授業が見つかりません" message="レビューを書く授業が見つかりませんでした。授業のページからもう一度お試しください。" user={user} />,
+      404
+    );
+  }//存在しない授業へのレビューは保存しない
+  const score=Number(body.score);
   const attendance=Number(body.attendance);
+  if(![1,2,3,4,5].includes(score)||![0,1,2,3].includes(attendance)){
+    return c.html(
+      <ErrorPage title="入力内容を確認してください" message="評価点数か出席の有無が正しくありません。一覧の中から選んで、もう一度お試しください。" user={user} />,
+      400
+    );
+  }//画面の選択肢（点数1〜5、出席0〜3）にない値を弾く
   const subjectId=Number(body.subject_id);
 
   const {data:existing,error:checkError}=await supabase
@@ -220,7 +249,7 @@ reviews.post("/new-review",async(c)=>{
   if(existing){
     const {error}=await createClientForRequest(c)
     .from("review")
-    .update({comment:body.review as string,score:score,attendance:attendance})
+    .update({comment:review,score:score,attendance:attendance})
     .eq("user_id",user.id)
     .eq("subject_id",subjectId);//自分のレビューだけを書き換える
     writeError=error;
@@ -262,7 +291,7 @@ reviews.post("/new-review",async(c)=>{
     }//24時間で30件まで。超えていたら新しいレビューは書けない
     const {error}=await createClientForRequest(c)
     .from("review")
-    .insert({comment:body.review as string,score:score,attendance:attendance,subject_id:subjectId,user_id:user.id});
+    .insert({comment:review,score:score,attendance:attendance,subject_id:subjectId,user_id:user.id});
     writeError=error;
   }
 
@@ -300,7 +329,10 @@ reviews.post("/delete-review",async (c)=>{
         .eq("user_id",id)
   if(error){
     console.error("レビュー削除に失敗",error);
-    return c.text("削除に失敗しました。時間をおいて再度お試しください。",500);
+    return c.html(
+      <ErrorPage title="削除に失敗しました" message="時間をおいて、もう一度お試しください。" user={user} />,
+      500
+    );
   }
   return c.redirect(`/subject/${encodeURIComponent(String(name))}`);//削除したら元の授業のページに戻す
 })

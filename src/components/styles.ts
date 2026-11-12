@@ -446,6 +446,16 @@ export const css = `
   }
   .empty-note { margin: 0; color: var(--text-2); }
   .empty-sub { margin: 0.4rem 0 1rem; font-size: 0.85rem; color: var(--text-2); }
+  /* ページ送り（ホームの授業一覧）。前へ・現在地・次へを横一列に */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+  .pagination-status { font-size: 0.85rem; color: var(--text-2); }
+  .pagination-spacer { width: 6rem; }
 
   /* ---- フォーム（授業登録・レビュー） ---- */
   /* フォームはカードにする（ログイン・確認コードのフォームも同じ見た目） */

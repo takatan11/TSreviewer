@@ -54,6 +54,7 @@ export const Layout = (props: { title: string; children: Child; user?: { email?:
           <div class="footer-inner">
             <a href="/contact" class="footer-link">お問い合わせ</a>
             <a href="/help" class="footer-link">ヘルプ</a>
+            <a href="/terms" class="footer-link">利用規約</a>
             <a href="/privacy" class="footer-link">プライバシーポリシー</a>
             <span>© 2026 単位の地図</span>
           </div>
@@ -90,7 +91,7 @@ export const Layout = (props: { title: string; children: Child; user?: { email?:
                   <li>このサイトは皆様の善意の情報提供によって成り立っています。</li>
                   <li>授業を修了した方はホームの<strong>「＋ 授業を登録」</strong>から、授業情報を登録してくださると大変助かります。</li>
                   <li>レビューにも率直なご感想を書き込んでいただけますと幸いです。</li>
-                  
+                  <li>ご利用前に<a href="/terms" class="legal-inline-link">利用規約</a>と<a href="/privacy" class="legal-inline-link">プライバシーポリシー</a>をご確認ください。</li>
                 </ul>
               </div>
 

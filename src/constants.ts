@@ -21,6 +21,12 @@ export const Department={
 } as const
 export const ALLOWED_TAGS=TAG_GROUPS.flatMap((group)=>group.tags);//POSTのときの許可リスト。TAG_GROUPSから作っている
 
+//授業登録の選択肢。フォームの<option>とPOSTの許可リストの両方でこの配列を使う
+export const SEMESTERS=["前期","後期","通年"] as const;
+export const DAYS=["月曜日","火曜日","水曜日","木曜日","金曜日","特別日程"] as const;
+export const PERIODS=["1","2","3","4","5","6"] as const;
+export const POINTS=["1","2"] as const;
+
 
 export const ALLOWED_REPORT_REASONS=["誹謗中傷","個人情報","虚偽の情報","スパム","その他"] as const;//通報理由。通報フォームの選択肢とPOSTの許可リストの両方で使う
 
