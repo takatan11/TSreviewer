@@ -1,7 +1,7 @@
 // パンくず（現在地の表示）。深い階層でも「今どこにいて、どこへ戻れるか」を画面に残す。
-// items の最後は現在のページ（リンクなし）。maxWidth はページ本文の幅に合わせる。
-export const Breadcrumb = (props: { items: { label: string; href?: string }[]; maxWidth?: number }) => (
-  <nav class="breadcrumb" aria-label="現在地" style={`max-width:${props.maxWidth ?? 800}px`}>
+// items の最後は現在のページ（リンクなし）。幅は本文の列（.container）に合わせる。
+export const Breadcrumb = (props: { items: { label: string; href?: string }[] }) => (
+  <nav class="breadcrumb" aria-label="現在地">
     {props.items.map((item, i) => (
       <>
         {i > 0 && <span class="crumb-sep" aria-hidden="true">›</span>}
