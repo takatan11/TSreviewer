@@ -38,15 +38,25 @@ export const Layout = (props: { title: string; children: Child; user?: { email?:
             </a>
             <nav class="site-nav">
               {props.user ? (
-                <form method="post" action="/logout" class="logout-form">
-                  <button type="submit">ログアウト</button>
-                </form>
+                <details class="account-menu" id="account-menu">
+                  <summary class="account-trigger">ログイン中</summary>
+                  <div class="account-dropdown">
+                    <form method="post" action="/logout">
+                      <button type="submit" class="account-item">ログアウト</button>
+                    </form>
+                  </div>
+                </details>
               ) : (
                 <a href="/login">ログイン</a>
               )}
             </nav>
           </div>
         </header>
+
+        <div id="flash" class="flash" role="status" aria-live="polite" hidden>
+          <span id="flash-text"></span>
+          <button type="button" id="flash-close" class="flash-close" aria-label="閉じる">×</button>
+        </div>
 
         <main class="container">{props.children}</main>
 
@@ -139,6 +149,30 @@ export const Layout = (props: { title: string; children: Child; user?: { email?:
           modal.hidden=false;
           render();
         })();
+        </script>
+        `)}
+        {raw(`
+        <script>
+        (function(){
+          var menu=document.getElementById('account-menu');
+          if(menu){
+            document.addEventListener('click',function(e){ if(menu.open&&!menu.contains(e.target)){ menu.open=false; } });
+            document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&menu.open){ menu.open=false; menu.querySelector('summary').focus(); } });
+          }//ログイン中メニュー。外側をクリック・Escキーで閉じる
+
+          var MESSAGES={login:'ログインしました',logout:'ログアウトしました'};
+          var url=new URL(location.href);
+          var key=url.searchParams.get('flash');
+          if(!key) return;
+          url.searchParams.delete('flash');
+          history.replaceState(null,'',url.pathname+url.search+url.hash);//再読み込みでもう一度出ないよう、URLから目印を消す
+          if(!Object.prototype.hasOwnProperty.call(MESSAGES,key)) return;
+          var box=document.getElementById('flash');
+          document.getElementById('flash-text').textContent=MESSAGES[key];
+          box.hidden=false;
+          var timer=setTimeout(function(){ box.hidden=true; },4000);
+          document.getElementById('flash-close').addEventListener('click',function(){ clearTimeout(timer); box.hidden=true; });
+        })();//ログイン・ログアウトの後に、結果を知らせる帯を数秒だけ出す
         </script>
         `)}
       </body>

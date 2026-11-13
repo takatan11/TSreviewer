@@ -107,19 +107,105 @@ export const css = `
     border-radius: var(--radius);
   }
   .site-nav a:hover { background: var(--surface-2); }
-  .logout-form { margin: 0; display: flex; }
-  .logout-form button {
-    font-family: inherit;
+  /* ログイン中メニュー。押すと下にログアウトが出る（誤って1回でログアウトしないよう2段階にする） */
+  .account-menu { position: relative; }
+  .account-trigger {
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--text-2);
     padding: 0.45rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .account-trigger::-webkit-details-marker { display: none; }
+  .account-trigger::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #16a34a;
+  }
+  .account-trigger::after {
+    content: "";
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid currentColor;
+    opacity: 0.6;
+    transition: transform 0.15s;
+  }
+  .account-menu[open] .account-trigger::after { transform: rotate(180deg); }
+  .account-trigger:hover, .account-menu[open] .account-trigger { background: var(--surface-2); }
+  .account-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .account-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    min-width: 160px;
+    padding: 0.35rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 24px rgba(16, 24, 40, 0.14);
+    z-index: 60;
+  }
+  .account-dropdown form { margin: 0; }
+  .account-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+    font-size: 0.875rem;
+    color: var(--text);
+    padding: 0.55rem 0.75rem;
     border: none;
     border-radius: var(--radius);
     background: transparent;
     cursor: pointer;
   }
-  .logout-form button:hover { background: var(--surface-2); color: var(--text); }
+  .account-item:hover, .account-item:focus-visible { background: var(--surface-2); outline: none; }
+
+  /* ログイン・ログアウトの後に出す帯。ヘッダーのすぐ下に数秒だけ出る */
+  .flash {
+    position: fixed;
+    top: 68px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 70;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    max-width: calc(100% - 32px);
+    padding: 0.6rem 0.6rem 0.6rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(16, 24, 40, 0.14);
+  }
+  .flash[hidden] { display: none; }
+  .flash-close {
+    font-family: inherit;
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--text-2);
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: var(--radius);
+    background: transparent;
+    cursor: pointer;
+  }
+  .flash-close:hover { background: var(--surface-2); color: var(--text); }
 
   /* ---- レイアウト ---- */
   .container { max-width: var(--maxw); margin: 1.75rem auto 3rem; padding: 0 1rem; }
@@ -501,6 +587,17 @@ export const css = `
     padding-right: 2.2rem;
   }
   form.new-class .button, .form-card .btn { margin-top: 0.5rem; }
+  /* 確認コードの入力欄。数字を大きく・間隔を空けて読みやすくする */
+  .otp-lead { margin: 0 0 1.1rem; line-height: 1.7; word-break: break-all; }
+  .otp-input {
+    height: 52px;
+    font-size: 1.5rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.35em;
+    text-align: center;
+  }
+  .otp-back { margin-top: 1rem; font-size: 0.85rem; text-align: center; }
+  .otp-back a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 
   /* ---- タグ選択（チェックボックス式トグルボタン） ---- */
   .tag-field-label {
@@ -796,6 +893,10 @@ export const css = `
 
   /* タグ欄を開いたとき、中身が上から軽く下りてくる */
   .tag-filter[open] > :not(summary) { animation: rise-in 0.2s var(--ease-out); }
+
+  /* ログイン中メニューを開いたとき・帯が出るとき */
+  .account-menu[open] .account-dropdown { animation: rise-in 0.15s var(--ease-out); }
+  .flash:not([hidden]) { animation: rise-in 0.2s var(--ease-out); }
 
   /* 検索候補が出るとき */
   .suggest-list:not(:empty) { animation: rise-in 0.15s var(--ease-out); }

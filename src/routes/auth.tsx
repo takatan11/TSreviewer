@@ -63,12 +63,18 @@ auth.post("/login/auth",async (c)=>{
     }//エラーの時はここの中身が実施される。エラーでなければ次のreturnが実施される
     return c.html(
     <Layout title="メールを確認してください">
+      <h1>確認コードの入力</h1>
       <form method="post" action="/login/verify">
-       <p>メールに届いた6桁コードを入力してください</p>
-       <input type="hidden" name="email" value={check} />
-       <input type="text" name="token" inputmode="numeric" required />
-       <button type="submit" class="btn">確認</button>
+        <p class="otp-lead"><strong>{check}</strong> に確認コードを送りました。メールに届いた数字を入力してください。</p>
+        <input type="hidden" name="email" value={check} />
+        <div class="form-group">
+          <label for="token">確認コード</label>
+          <input type="text" id="token" name="token" class="form-control otp-input" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" maxlength={10} required autofocus />
+          <p class="form-hint">メールが届かないときは、迷惑メールフォルダも確認してください。</p>
+        </div>
+        <button type="submit" class="btn">ログイン</button>
       </form>
+      <p class="otp-back"><a href="/login">メールアドレスを入力し直す</a></p>
     </Layout>
    )
   }
@@ -109,14 +115,14 @@ auth.post("/login/verify",async(c)=>{
       400
     );
   }
-  return c.redirect('/');
+  return c.redirect('/?flash=login');//ホームで「ログインしました」の帯を出す
 })//cookieの検証
 
 
 auth.post("/logout",async(c)=>{
   const client=createClientForRequest(c);
   await client.auth.signOut();
-  return c.redirect("/");
+  return c.redirect("/?flash=logout");//ホームで「ログアウトしました」の帯を出す
 })//ログアウト機能
 
 export default auth;//ログイン・ログアウトのルート
