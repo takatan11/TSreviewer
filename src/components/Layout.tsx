@@ -4,7 +4,7 @@ import { css } from './styles.js'
 
 // 全ページ共通の外枠。各画面はこの中に children として差し込まれる。
 // サイト共通の装飾（CSS）もここで一度だけ読み込む。
-export const Layout = (props: { title: string; children: Child; user?: { email?: string | null } | null }) => (
+export const Layout = (props: { title: string; children: Child; user?: { email?: string | null } | null; hideLogin?: boolean }) => (
   <>
     {raw('<!DOCTYPE html>')}
     <html lang="ja">
@@ -46,9 +46,9 @@ export const Layout = (props: { title: string; children: Child; user?: { email?:
                     </form>
                   </div>
                 </details>
-              ) : (
+              ) : !props.hideLogin && (
                 <a href="/login">ログイン</a>
-              )}
+              )}{/* ログインの画面にいるときは、右上のログインのリンクを出さない（hideLogin） */}
             </nav>
           </div>
         </header>

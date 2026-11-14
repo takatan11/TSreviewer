@@ -9,7 +9,7 @@ const auth=new Hono();
 auth.get('/login',async(c)=>{
   const user=await getCurrentUser(c);
   return c.html(
-    <Layout title="ログイン" user={user}>
+    <Layout title="ログイン" user={user} hideLogin>
       <h1>ログイン</h1>
       <form method="post" action="/login/auth">
         <div class="form-group">
@@ -49,7 +49,7 @@ auth.post("/login/auth",async (c)=>{
     if(otpError){
       console.error('コード送信失敗:', otpError);
       return c.html(
-        <Layout title="送信に失敗しました">
+        <Layout title="送信に失敗しました" hideLogin>
           <div class="error-view">
             <h1>送信に失敗しました</h1>
             <div class="error-card">
@@ -62,7 +62,7 @@ auth.post("/login/auth",async (c)=>{
       )
     }//エラーの時はここの中身が実施される。エラーでなければ次のreturnが実施される
     return c.html(
-    <Layout title="メールを確認してください">
+    <Layout title="メールを確認してください" hideLogin>
       <h1>確認コードの入力</h1>
       <form method="post" action="/login/verify">
         <p class="otp-lead"><strong>{check}</strong> に確認コードを送りました。メールに届いた数字を入力してください。</p>
@@ -80,7 +80,7 @@ auth.post("/login/auth",async (c)=>{
   }
   else{
     return c.html(
-      <Layout title="メールアドレスをご確認ください">
+      <Layout title="メールアドレスをご確認ください" hideLogin>
         <div class="error-view">
           <h1>メールアドレスをご確認ください</h1>
           <div class="error-card">
@@ -103,7 +103,7 @@ auth.post("/login/verify",async(c)=>{
   if (error) {
     console.error('コード検証失敗:', error);
     return c.html(
-      <Layout title="コードをご確認ください">
+      <Layout title="コードをご確認ください" hideLogin>
         <div class="error-view">
           <h1>コードをご確認ください</h1>
           <div class="error-card">
