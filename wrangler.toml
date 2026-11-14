@@ -1,0 +1,13 @@
+# Cloudflare Workers の設定
+name = "taninochizu"
+main = "src/index.tsx"
+compatibility_date = "2025-10-01"
+compatibility_flags = ["nodejs_compat"]  # process.env で環境変数を読めるようにする
+
+# 週2回（月・木の日本時間9時）Supabase に軽くアクセスして、無料プランの自動停止を防ぐ
+[triggers]
+crons = ["0 0 * * 1,4"]
+
+# 管理画面でログ（console.error など）を見られるようにする
+[observability]
+enabled = true

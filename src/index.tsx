@@ -1,4 +1,3 @@
-import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { csrf } from 'hono/csrf'
 import { secureHeaders } from 'hono/secure-headers'
@@ -10,6 +9,7 @@ import reviews from './routes/reviews.js'
 import reports from './routes/reports.js'
 import auth from './routes/auth.js'
 import pages from './routes/pages.js'
+import { supabase } from './db/index.js'
 const app = new Hono()
 
 app.use("*",csrf());//CSRF対策。状態を変えるPOSTはOrigin/Refererを検証する
@@ -26,9 +26,15 @@ app.route("/",reports);//通報
 app.route("/",auth);//ログイン・ログアウト
 app.route("/",pages);//お問い合わせ・プライバシーポリシー・利用規約・ヘルプ・お礼のページ
 
-serve({
-  fetch: app.fetch,
-  port: 3000
-}, (info) => {
-  console.log(`Server is running on http://localhost:${info.port}`)
-})//このserveがリクエストに対してポートを開く
+export default {
+  fetch:app.fetch,
+  async scheduled(){
+    const {error}=await supabase
+    .from("subject")
+    .select("id")
+    .limit(1);
+    if(error){
+      console.error("定期アクセスに失敗",error);
+    }
+  },//wrangler.tomlのcronで週2回呼ばれる。Supabaseに軽くアクセスして、無料プランの自動停止を防ぐ
+};//Cloudflare Workersに渡す。fetchはふだんのアクセス、scheduledは決まった時間の処理
