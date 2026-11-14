@@ -3,6 +3,8 @@ name = "taninochizu"
 main = "src/index.tsx"
 compatibility_date = "2025-10-01"
 compatibility_flags = ["nodejs_compat"]  # process.env で環境変数を読めるようにする
+workers_dev = true      # https://taninochizu.rookiestudent.workers.dev で公開する
+preview_urls = false    # 版ごとの別URL（プレビュー）を作らない。本番以外の入口を増やさないため
 
 # 週2回（月・木の日本時間9時）Supabase に軽くアクセスして、無料プランの自動停止を防ぐ
 [triggers]
