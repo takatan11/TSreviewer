@@ -54,11 +54,11 @@ home.get('/', async(c) => {
     courseQuery=courseQuery.eq('depart',department);//学科検索
   }
   for(const group of TAG_GROUPS){
-    const picked=selectedTags.filter((t)=>(group.tags as readonly string[]).includes(t));
+    const picked=selectedTags.filter((t)=>group.tags.some((tag)=>tag.value===t));
     if(picked.length){
-      courseQuery=courseQuery.overlaps("tags",picked);
+      courseQuery="multiple" in group ? courseQuery.contains("tags",picked) : courseQuery.overlaps("tags",picked);
     }
-  }//タグ検索。同じ行の中はどれか1つ、違う行どうしはすべてに当てはまる授業に絞る
+  }//タグ検索。複数選べる行（評価方法）は選んだものすべて、ほかの行はどれか1つに当てはまる授業。違う行どうしはすべてに当てはまる授業に絞る
   const from=(page-1)*PAGE_SIZE;
   const{data:courses,count,error:readError}=await courseQuery.range(from,from+PAGE_SIZE-1);
   if(readError?.code==="PGRST103"){
@@ -105,7 +105,7 @@ home.get('/', async(c) => {
               タグで絞り込み
               {selectedTags.length > 0 && <span class="tag-filter-count">{selectedTags.length}件選択中</span>}
             </summary>
-            <p class="tag-filter-hint">各行から1つまで選べます（もう一度押すと外れます）。選んだタグすべてに当てはまる授業に絞り込みます。</p>
+            <p class="tag-filter-hint">各行から1つまで選べます（評価方法は複数可・もう一度押すと外れます）。選んだタグすべてに当てはまる授業に絞り込みます。</p>
             <TagGroups selected={selectedTags} />
           </details>
         </form>

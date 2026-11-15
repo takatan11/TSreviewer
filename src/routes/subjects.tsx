@@ -7,7 +7,7 @@ import {supabase} from '../db/index.js'
 import{html} from 'hono/html'
 import{createClientForRequest} from '../db/server.js'
 import { getCurrentUser } from '../auth.js'
-import { ALLOWED_TAGS, Faculty, Department, SEMESTERS, DAYS, PERIODS, POINTS } from '../constants.js'
+import { ALLOWED_TAGS, TAG_GROUPS, Faculty, Department, SEMESTERS, DAYS, PERIODS, POINTS } from '../constants.js'
 
 const subjects=new Hono();
 
@@ -53,6 +53,9 @@ subjects.get("/subject/:name",async(c)=>{
   const avgScore=reviewList.length===0 ? null : reviewList.reduce((acc,r)=>acc+(Number(r.score)||0),0)/reviewList.length;//レビューが0件なら平均なし(null)
   const myReview=user ? reviewList.find((r)=>r.user_id===user.id) : undefined;//自分のレビュー。「レビューを書く」ボタンの文字を変えるのに使う
   const subjectTags:string[]=Array.isArray(subject.tags) ? subject.tags : [];
+  const tagRows=TAG_GROUPS
+  .map((group)=>({label:group.label,tags:group.tags.filter((tag)=>subjectTags.includes(tag.value))}))
+  .filter((row)=>row.tags.length>0);//授業ページ用。付いているタグを行ごとにまとめる（「出席：とる」のように行の名前と一緒に出すため）
   const slotText=slotList.map((slot)=>`${slot.day} ${slot.period}限`).join("、");
   const formatDate=(iso:string)=>new Date(iso).toLocaleDateString("ja-JP");//投稿日の表示用（2026/10/14の形）
 
@@ -87,10 +90,18 @@ subjects.get("/subject/:name",async(c)=>{
             <dt>タグ</dt>
             <dd>
               {/* タグを押すとそのタグで絞り込んだホームが開く */}
-              {subjectTags.length > 0 ? (
+              {tagRows.length > 0 ? (
                 <span class="tag-links">
-                  {subjectTags.map((tag) => (
-                    <a href={`/?tags=${encodeURIComponent(tag)}`} class="tag-link">{tag}</a>
+                  {tagRows.map((row) => (
+                    <span class="tag-item">
+                      <span class="tag-item-name">{row.label}：</span>
+                      {row.tags.map((tag, i) => (
+                        <>
+                          {i > 0 && "・"}
+                          <a href={`/?tags=${encodeURIComponent(tag.value)}`} class="tag-link">{tag.label}</a>
+                        </>
+                      ))}
+                    </span>
                   ))}
                 </span>
               ) : "なし"}
@@ -231,7 +242,7 @@ subjects.get('/new-class',async(c)=>{
         </div>
 
         <div class="tag-field">
-          <span class="tag-field-label">タグ（当てはまるものを各行から1つまで・もう一度押すと外れます）</span>
+          <span class="tag-field-label">タグ（当てはまるものを各行から1つまで・評価方法は複数可・もう一度押すと外れます）</span>
           {/* タグはTAG_GROUPSから作る */}
           <TagGroups />
         </div>
@@ -291,7 +302,7 @@ subjects.post('/new-class', async (c) => {
   const body = await c.req.parseBody({all:true});
   const value=String(body.class_name).trim();
   const about=String(body.class_about).trim();
-  const tags=[body.tags].flat().filter((t):t is string=>ALLOWED_TAGS.includes(t as any));
+  const tags=[body.tags].flat().filter((t):t is string=>typeof t==="string"&&ALLOWED_TAGS.includes(t));
   if(value===""||/[.,。、]/.test(value)||value.length>200){
     console.error("授業名が不正です:", JSON.stringify(body.class_name));
     return c.html(

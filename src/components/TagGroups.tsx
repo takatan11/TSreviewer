@@ -7,9 +7,9 @@ export const TagGroups=(props:{selected?:readonly string[]})=>(
       {TAG_GROUPS.map((group) => (
         <div class="tag-row">
           <span class="tag-row-label">{group.label}</span>
-          <div class="tag-group" data-exclusive>
+          <div class="tag-group" data-exclusive={"multiple" in group ? undefined : ""}>
             {group.tags.map((tag) => (
-              <label class="tag-chip"><input type="checkbox" name="tags" value={tag} checked={props.selected?.includes(tag) ?? false} /><span>{tag}</span></label>
+              <label class="tag-chip"><input type="checkbox" name="tags" value={tag.value} checked={props.selected?.includes(tag.value) ?? false} /><span>{tag.label}</span></label>
             ))}
           </div>
         </div>
@@ -29,7 +29,7 @@ export const TagGroups=(props:{selected?:readonly string[]})=>(
             }
           });
         });
-      });//同じ行のタグは1つまで。1つ選んだら同じ行のほかのタグを外す
+      });//同じ行のタグは1つまで（評価方法など複数選べる行は除く）。1つ選んだら同じ行のほかのタグを外す
       </script>
     `}
   </>

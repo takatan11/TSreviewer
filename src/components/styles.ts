@@ -612,7 +612,7 @@ export const css = `
   .tag-groups { display: flex; flex-direction: column; gap: 0.6rem; }
   .tag-row {
     display: grid;
-    grid-template-columns: 5.5rem 1fr;
+    grid-template-columns: 8.5rem 1fr;
     align-items: start;
     gap: 0.75rem;
   }
@@ -771,6 +771,8 @@ export const css = `
   .tag-links { display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; }
   .tag-link { color: var(--accent); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); }
   .tag-link:hover { text-decoration-color: var(--accent); }
+  .tag-item { white-space: nowrap; }
+  .tag-item-name { color: var(--text-2); font-size: 0.85rem; }
   .review-list { display: flex; flex-direction: column; gap: 0.75rem; }
   .review-item { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1.05rem; }
   /* 自分のレビューは左端の帯で示す（状態を見た目で表す） */
