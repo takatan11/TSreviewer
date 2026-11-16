@@ -149,12 +149,11 @@ subjects.get("/subject/:name",async(c)=>{
                     </div>
                   </div>
                   <p class="review-comment">{review.comment}</p>
-                  <div class="review-foot">
-                    {mine && (
-                      <a href={`/edit-review?subject_id=${subject.id}`} class="edit-link">編集</a>
-                    )}
-                    <a href={`/report?target_type=review&target_id=${review.id}`} class="report-link">通報</a>
-                  </div>
+                  {!mine && (
+                    <div class="review-foot">
+                      <a href={`/report?target_type=review&target_id=${review.id}`} class="report-link">通報</a>
+                    </div>
+                  )}{/* 自分のレビューには通報を出さない（編集は上の「自分のレビューを編集」から） */}
                 </div>
               )
             })}
@@ -201,6 +200,14 @@ subjects.get('/new-class',async(c)=>{
             </select>
         </div>
         <div>
+          <label for="days">曜日</label>
+            <select id='days' name='days'>
+              {DAYS.map((d)=>(
+                <option value={d}>{d}</option>
+              ))}
+            </select>
+        </div>
+        <div>
           <label for="period">時限</label>
             <select id="period" name='period'>
               {PERIODS.map((p)=>(
@@ -222,14 +229,6 @@ subjects.get('/new-class',async(c)=>{
            <select id='depart' name='depart' data-departments={JSON.stringify(Department)}>
               <option value="">学部を先に選択</option>
            </select>
-        </div>
-        <div>
-          <label for="days">曜日</label>
-            <select id='days' name='days'>
-              {DAYS.map((d)=>(
-                <option value={d}>{d}</option>
-              ))}
-            </select>
         </div>
 
         <div>
@@ -264,7 +263,7 @@ subjects.get('/new-class',async(c)=>{
           event.preventDefault();
           nameError.textContent="授業名は必須です（記号・空白のみは不可）";
          }
-         if(aboutValue==="" || /[.,。、]/.test(aboutValue)){
+         if(/^[\s.,。、]*$/.test(aboutValue)){
           event.preventDefault();
           aboutError.textContent="概要は必須です（記号・空白のみは不可）";
          }

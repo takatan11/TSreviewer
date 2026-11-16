@@ -769,10 +769,10 @@ export const css = `
   .info-row dd { margin: 0; font-size: 0.92rem; color: var(--text); }
   /* タグはリンク（押すとそのタグの授業一覧が開く）。押せることが分かるようアクセント色＋下線 */
   .tag-links { display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; }
-  .tag-link { color: var(--accent); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+  .tag-link { color: color-mix(in srgb, var(--accent) 55%, var(--text)); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--accent) 30%, transparent); }
   .tag-link:hover { text-decoration-color: var(--accent); }
   .tag-item { white-space: nowrap; }
-  .tag-item-name { color: var(--text-2); font-size: 0.85rem; }
+  .tag-item-name { color: var(--text-2); }
   .review-list { display: flex; flex-direction: column; gap: 0.75rem; }
   .review-item { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1.05rem; }
   /* 自分のレビューは左端の帯で示す（状態を見た目で表す） */

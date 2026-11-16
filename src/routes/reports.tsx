@@ -23,9 +23,9 @@ reports.get("/report",async(c)=>{
         <div class="form-group">
           <label for="reason">報告理由</label>
           <select id="reason" name="reason" class="form-control">
-            {ALLOWED_REPORT_REASONS.map((reason) => (
+            {ALLOWED_REPORT_REASONS.filter((reason)=>targetType==="subject"||reason!=="授業情報の修正").map((reason) => (
               <option value={reason}>{reason}</option>
-            ))}
+            ))}{/* 「授業情報の修正」は授業の通報のときだけ出す */}
           </select>
         </div>
         <button type="submit" class="btn">通報する</button>
